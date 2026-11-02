@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 import asyncio
 from pathlib import Path
+from typing import Optional, Set
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 
@@ -7,16 +11,16 @@ from tracker import PostureTracker
 
 app = FastAPI(title="Live Posture Monitor")
 tracker = PostureTracker()
-TEMPLATES_DIR = Path(__file__).parent / "templates"
+TEMPLATES_DIR: Path = Path(__file__).parent / "templates"
 
 
 class ConnectionManager:
     """Manages dashboard clients using an event-driven latest-frame model.
     Guarantees 0 buffered frames and 0 latency accumulation.
     """
-    def __init__(self):
-        self.events: set[asyncio.Event] = set()
-        self.latest_frame: bytes | None = None
+    def __init__(self) -> None:
+        self.events: Set[asyncio.Event] = set()
+        self.latest_frame: Optional[bytes] = None
         self.frame_id: int = 0
 
     def register(self) -> asyncio.Event:
@@ -24,10 +28,10 @@ class ConnectionManager:
         self.events.add(event)
         return event
 
-    def unregister(self, event: asyncio.Event):
+    def unregister(self, event: asyncio.Event) -> None:
         self.events.discard(event)
 
-    def publish_frame(self, frame_bytes: bytes):
+    def publish_frame(self, frame_bytes: bytes) -> None:
         self.latest_frame = frame_bytes
         self.frame_id += 1
         for event in list(self.events):
@@ -38,22 +42,22 @@ manager = ConnectionManager()
 
 
 @app.get("/")
-async def root():
+async def root() -> FileResponse:
     return FileResponse(TEMPLATES_DIR / "index.html")
 
 
 @app.get("/capture")
-async def capture_page():
+async def capture_page() -> FileResponse:
     return FileResponse(TEMPLATES_DIR / "capture.html")
 
 
 @app.get("/dashboard")
-async def dashboard_page():
+async def dashboard_page() -> FileResponse:
     return FileResponse(TEMPLATES_DIR / "dashboard.html")
 
 
 @app.websocket("/ws/capture")
-async def capture_ws(ws: WebSocket):
+async def capture_ws(ws: WebSocket) -> None:
     await ws.accept()
     tracker.reset()
 
@@ -87,10 +91,10 @@ async def capture_ws(ws: WebSocket):
 
 
 @app.websocket("/ws/dashboard")
-async def dashboard_ws(ws: WebSocket):
+async def dashboard_ws(ws: WebSocket) -> None:
     await ws.accept()
     event = manager.register()
-    last_sent_id = -1
+    last_sent_id: int = -1
 
     try:
         while True:

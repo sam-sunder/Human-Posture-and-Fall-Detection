@@ -1,74 +1,77 @@
+from __future__ import annotations
+
 import time
 from collections import deque
+from typing import Any, Deque, Dict, List, Optional, Tuple
+
 import cv2
 import numpy as np
 from ultralytics import YOLO
 
 from config import (
-    MODEL_NAME,
-    INFERENCE_SIZE,
-    MIN_CONFIDENCE,
-    JPEG_QUALITY,
-    PROLONGED_POSTURE_SECONDS,
-    TORSO_UPRIGHT_ANGLE,
-    TORSO_LYING_ANGLE,
-    MOVEMENT_THRESHOLD,
-    FALL_VELOCITY_THRESHOLD,
     FALL_ANGULAR_VELOCITY_THRESHOLD,
-    FALL_CONFIRMATION_SECONDS,
     FALL_ASPECT_RATIO_THRESHOLD,
+    FALL_CONFIRMATION_SECONDS,
+    FALL_VELOCITY_THRESHOLD,
+    INFERENCE_SIZE,
+    JPEG_QUALITY,
+    MIN_CONFIDENCE,
+    MODEL_NAME,
+    PROLONGED_POSTURE_SECONDS,
+    TORSO_LYING_ANGLE,
+    TORSO_UPRIGHT_ANGLE,
 )
 
 # Skeleton connections for YOLO Pose (COCO 17 keypoints)
-SKELETON_PAIRS = [
-    (5, 6),   # left shoulder - right shoulder
-    (5, 11),  # left shoulder - left hip
-    (6, 12),  # right shoulder - right hip
-    (11, 12), # left hip - right hip
-    (5, 7),   # left shoulder - left elbow
-    (7, 9),   # left elbow - left wrist
-    (6, 8),   # right shoulder - right elbow
-    (8, 10),  # right elbow - right wrist
-    (11, 13), # left hip - left knee
-    (13, 15), # left knee - left ankle
-    (12, 14), # right hip - right knee
-    (14, 16), # right knee - right ankle
+SKELETON_PAIRS: List[Tuple[int, int]] = [
+    (5, 6),    # left shoulder - right shoulder
+    (5, 11),   # left shoulder - left hip
+    (6, 12),   # right shoulder - right hip
+    (11, 12),  # left hip - right hip
+    (5, 7),    # left shoulder - left elbow
+    (7, 9),    # left elbow - left wrist
+    (6, 8),    # right shoulder - right elbow
+    (8, 10),   # right elbow - right wrist
+    (11, 13),  # left hip - left knee
+    (13, 15),  # left knee - left ankle
+    (12, 14),  # right hip - right knee
+    (14, 16),  # right knee - right ankle
 ]
 
 
 class PostureTracker:
-    def __init__(self, model_path: str = MODEL_NAME):
-        self.model_path = model_path
-        self._model = None
+    def __init__(self, model_path: str = MODEL_NAME) -> None:
+        self.model_path: str = model_path
+        self._model: Optional[YOLO] = None
 
         # Trajectory history for dynamic velocity & angle tracking
         # Each item: (timestamp, cy, torso_angle, box_height, aspect_ratio, cx)
-        self.history = deque(maxlen=60)
+        self.history: Deque[Tuple[float, float, Optional[float], float, float, float]] = deque(maxlen=60)
 
         # Prolonged posture tracking
-        self.current_posture = "UNKNOWN"
-        self.posture_start_time = None
-        self.posture_duration = 0.0
-        self.prolonged_alert = False
+        self.current_posture: str = "UNKNOWN"
+        self.posture_start_time: Optional[float] = None
+        self.posture_duration: float = 0.0
+        self.prolonged_alert: bool = False
 
         # Fall detection FSM
         # States: "NORMAL", "DESCENT_DETECTED", "FALL_CONFIRMED"
-        self.fall_state = "NORMAL"
-        self.descent_time = None
-        self.lying_start_time = None
-        self.fall_alert = False
-        self.fall_cooldown_time = None
+        self.fall_state: str = "NORMAL"
+        self.descent_time: Optional[float] = None
+        self.lying_start_time: Optional[float] = None
+        self.fall_alert: bool = False
+        self.fall_cooldown_time: Optional[float] = None
 
         # Cached telemetry for API/WebSockets
-        self.latest_telemetry = {}
+        self.latest_telemetry: Dict[str, Any] = {}
 
     @property
-    def model(self):
+    def model(self) -> YOLO:
         if self._model is None:
             self._model = YOLO(self.model_path)
         return self._model
 
-    def reset(self):
+    def reset(self) -> None:
         self.history.clear()
         self.current_posture = "UNKNOWN"
         self.posture_start_time = None
@@ -81,7 +84,7 @@ class PostureTracker:
         self.fall_cooldown_time = None
         self.latest_telemetry = {}
 
-    def _classify_posture(self, torso_angle: float | None, aspect_ratio: float) -> str:
+    def _classify_posture(self, torso_angle: Optional[float], aspect_ratio: float) -> str:
         """Classifies human posture based on torso inclination angle and bounding box geometry."""
         if torso_angle is None:
             # Fallback to aspect ratio if keypoints are occluded
@@ -103,7 +106,14 @@ class PostureTracker:
         else:
             return "LEANING / BENDING"
 
-    def _update_prolonged_posture(self, now: float, detected_posture: str, cx: float, cy: float, box_h: float):
+    def _update_prolonged_posture(
+        self,
+        now: float,
+        detected_posture: str,
+        cx: float,
+        cy: float,
+        box_h: float,
+    ) -> None:
         """Monitors posture continuity and triggers alert if unchanged beyond threshold."""
         if self.posture_start_time is None or detected_posture != self.current_posture:
             self.current_posture = detected_posture
@@ -119,19 +129,19 @@ class PostureTracker:
         self,
         now: float,
         cy: float,
-        torso_angle: float | None,
+        torso_angle: Optional[float],
         box_h: float,
         aspect_ratio: float,
         posture: str,
-    ) -> tuple[float, float]:
+    ) -> Tuple[float, float]:
         """Calculates vertical velocity and angular velocity to detect falls and confirm floor immobility."""
-        downward_vel = 0.0
-        angular_vel = 0.0
+        downward_vel: float = 0.0
+        angular_vel: float = 0.0
 
         # Look back ~0.25 to 0.45 seconds in trajectory history to calculate velocity
-        if len(self.history) >= 2:
+        if len(self.history) >= 1:
             target_time = now - 0.35
-            closest = None
+            closest: Optional[Tuple[float, float, Optional[float], float, float, float]] = None
             for item in self.history:
                 if item[0] <= target_time:
                     closest = item
@@ -141,7 +151,7 @@ class PostureTracker:
                 closest = self.history[0]
 
             dt = now - closest[0]
-            if dt >= 0.12:
+            if dt >= 0.08:
                 # Downward velocity in normalized body heights per second
                 downward_vel = (cy - closest[1]) / (box_h * dt)
 
@@ -154,7 +164,11 @@ class PostureTracker:
         # Phase 1: Rapid descent trigger
         is_rapid_descent = (
             downward_vel >= FALL_VELOCITY_THRESHOLD
-            and (angular_vel >= FALL_ANGULAR_VELOCITY_THRESHOLD or (torso_angle and torso_angle >= 45.0) or aspect_ratio >= 0.95)
+            and (
+                angular_vel >= FALL_ANGULAR_VELOCITY_THRESHOLD
+                or (torso_angle is not None and torso_angle >= 45.0)
+                or aspect_ratio >= 0.95
+            )
         )
 
         if is_rapid_descent and self.fall_state == "NORMAL":
@@ -164,28 +178,29 @@ class PostureTracker:
 
         # Phase 2: Post-descent lying & confirmation
         if self.fall_state == "DESCENT_DETECTED":
-            time_since_descent = now - self.descent_time
-            if time_since_descent <= 3.5:
-                # Check if person is on the ground / lying down
-                if posture == "LYING DOWN" or aspect_ratio >= FALL_ASPECT_RATIO_THRESHOLD:
-                    if self.lying_start_time is None:
-                        self.lying_start_time = now
-                    immobility_time = now - self.lying_start_time
+            if self.descent_time is not None:
+                time_since_descent = now - self.descent_time
+                if time_since_descent <= 3.5:
+                    # Check if person is on the ground / lying down
+                    if posture == "LYING DOWN" or aspect_ratio >= FALL_ASPECT_RATIO_THRESHOLD:
+                        if self.lying_start_time is None:
+                            self.lying_start_time = now
+                        immobility_time = now - self.lying_start_time
 
-                    if immobility_time >= FALL_CONFIRMATION_SECONDS:
-                        self.fall_state = "FALL_CONFIRMED"
-                        self.fall_alert = True
+                        if immobility_time >= FALL_CONFIRMATION_SECONDS:
+                            self.fall_state = "FALL_CONFIRMED"
+                            self.fall_alert = True
+                    else:
+                        # If person quickly recovers upright posture, cancel false alarm
+                        if posture in ("STANDING", "SITTING") and (time_since_descent >= 1.0):
+                            self.fall_state = "NORMAL"
+                            self.descent_time = None
+                            self.lying_start_time = None
                 else:
-                    # If person quickly recovers upright posture, cancel false alarm
-                    if posture in ("STANDING", "SITTING") and (time_since_descent >= 1.0):
-                        self.fall_state = "NORMAL"
-                        self.descent_time = None
-                        self.lying_start_time = None
-            else:
-                # Descent window expired without confirmation
-                self.fall_state = "NORMAL"
-                self.descent_time = None
-                self.lying_start_time = None
+                    # Descent window expired without confirmation
+                    self.fall_state = "NORMAL"
+                    self.descent_time = None
+                    self.lying_start_time = None
 
         # Phase 3: Auto-recovery from confirmed fall when person stands up
         if self.fall_state == "FALL_CONFIRMED":
@@ -214,13 +229,14 @@ class PostureTracker:
         )
         result = results[0]
 
-        detected = False
-        box = None
-        keypoints = None
-        torso_angle = None
-        cx, cy = float(w / 2), float(h / 2)
-        box_h = float(h)
-        aspect_ratio = 1.0
+        detected: bool = False
+        box: Optional[np.ndarray] = None
+        keypoints: Optional[np.ndarray] = None
+        torso_angle: Optional[float] = None
+        cx: float = float(w / 2)
+        cy: float = float(h / 2)
+        box_h: float = float(h)
+        aspect_ratio: float = 1.0
 
         if result.boxes is not None and len(result.boxes) > 0:
             boxes = result.boxes.xyxy.cpu().numpy()
@@ -250,7 +266,7 @@ class PostureTracker:
 
             detected = True
 
-        if detected:
+        if detected and box is not None:
             # 1. Classify Posture
             posture = self._classify_posture(torso_angle, aspect_ratio)
 
@@ -284,8 +300,8 @@ class PostureTracker:
 
             # Determine Bounding Box Color and Label
             if self.fall_alert:
-                box_color = (0, 0, 255)  # Bright Red
-                label = "🚨 CRITICAL: FALL DETECTED!"
+                box_color: Tuple[int, int, int] = (0, 0, 255)  # Bright Red
+                label: str = "🚨 CRITICAL: FALL DETECTED!"
             elif self.prolonged_alert:
                 box_color = (0, 140, 255)  # Warning Amber
                 label = f"⚠️ PROLONGED {self.current_posture}"
@@ -430,7 +446,7 @@ class PostureTracker:
 
         return frame
 
-    def process_raw_bytes(self, raw_bytes: bytes) -> bytes | None:
+    def process_raw_bytes(self, raw_bytes: bytes) -> Optional[bytes]:
         """Decodes JPEG bytes, executes posture and fall detection, and re-encodes to JPEG bytes."""
         frame = cv2.imdecode(np.frombuffer(raw_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
         if frame is None:
@@ -439,4 +455,4 @@ class PostureTracker:
         ok, enc = cv2.imencode(".jpg", annotated, [int(cv2.IMWRITE_JPEG_QUALITY), JPEG_QUALITY])
         if not ok:
             return None
-        return enc.tobytes()
+        return bytes(enc.tobytes())
