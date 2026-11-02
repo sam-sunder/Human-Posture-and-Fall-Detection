@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Live Posture Dashboard</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      background: #0b1220;
+      color: #f9fafb;
+      padding: 16px;
+    }
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 1.4rem;
+    }
+    .stats-bar {
+      display: flex;
+      gap: 10px;
+    }
+    .badge {
+      font-size: 0.85rem;
+      background: #172033;
+      padding: 6px 12px;
+      border-radius: 8px;
+      color: #93c5fd;
+      border: 1px solid #28354f;
+    }
+    .video-container {
+      position: relative;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      min-height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .video {
+      width: 100%;
+      height: auto;
+      max-height: 75vh;
+      display: block;
+      object-fit: contain;
+    }
+    .status {
+      padding: 10px 14px;
+      background: #172033;
+      border-radius: 8px;
+      margin: 12px 0;
+      font-size: 0.9rem;
+      border-left: 4px solid #3b82f6;
+    }
+    .hint {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Live Posture Dashboard</h1>
+      <div class="stats-bar">
+        <div class="badge" id="fpsDisplay">FPS: 0</div>
+        <div class="badge" id="latencyDisplay">Zero-Buffer Sync: Active</div>
+      </div>
+    </header>
+
+    <div class="status" id="status">Connecting to server…</div>
+
+    <div class="video-container">
+      <img class="video" id="feed" alt="Live annotated stream">
+    </div>
+
+    <p class="hint">
+      Open <a href="/capture" target="_blank">/capture</a> on your phone to stream live camera video. Frames are pulled on demand to guarantee zero lag accumulation.
+    </p>
+  </main>
+
+  <script>
+    const img = document.getElementById('feed');
+    const statusEl = document.getElementById('status');
+    const fpsDisplay = document.getElementById('fpsDisplay');
+
+    let frameCount = 0;
+    let lastFpsUpdate = performance.now();
+    let currentObjectUrl = null;
+    let lastFrameTime = performance.now();
+
+    function updateFps() {
+      frameCount++;
+      const now = performance.now();
+      const elapsed = now - lastFpsUpdate;
+      if (elapsed >= 1000) {
+        fpsDisplay.textContent = `FPS: ${((frameCount * 1000) / elapsed).toFixed(1)}`;
+        frameCount = 0;
+        lastFpsUpdate = now;
+      }
+    }
+
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${proto}//${location.host}/ws/dashboard`);
+    ws.binaryType = 'blob';
+
+    function requestNextFrame() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send('ready');
+      }
+    }
+
+    ws.onopen = () => {
+      statusEl.textContent = 'Connected. Waiting for phone camera stream…';
+      statusEl.style.borderLeftColor = '#3b82f6';
+      // Request the first frame
+      requestNextFrame();
+    };
+
+    img.onload = () => {
+      lastFrameTime = performance.now();
+      updateFps();
+      // Clean up previously displayed frame blob
+      if (img.dataset.prevUrl) {
+        URL.revokeObjectURL(img.dataset.prevUrl);
+        delete img.dataset.prevUrl;
+      }
+      // Pull the next frame only after current frame is decoded and rendered
+      requestNextFrame();
+    };
+
+    img.onerror = () => {
+      requestNextFrame();
+    };
+
+    ws.onmessage = (event) => {
+      if (typeof event.data === 'string') {
+        // Keepalive / wait notice when no camera is streaming yet
+        if (event.data === 'wait') {
+          setTimeout(requestNextFrame, 300);
+        }
+        return;
+      }
+
+      // Received binary image frame
+      const nextUrl = URL.createObjectURL(event.data);
+      if (currentObjectUrl) {
+        img.dataset.prevUrl = currentObjectUrl;
+      }
+      currentObjectUrl = nextUrl;
+      img.src = nextUrl;
+
+      if (statusEl.textContent !== 'Receiving live video') {
+        statusEl.textContent = 'Receiving live video';
+        statusEl.style.borderLeftColor = '#16a34a';
+      }
+    };
+
+    // Heartbeat recovery to re-request if any frame was dropped
+    setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN && performance.now() - lastFrameTime > 2000) {
+        requestNextFrame();
+      }
+    }, 1500);
+
+    ws.onclose = () => {
+      statusEl.textContent = 'Dashboard disconnected. Reload page to reconnect.';
+      statusEl.style.borderLeftColor = '#dc2626';
+    };
+
+    ws.onerror = () => {
+      statusEl.textContent = 'Dashboard connection error.';
+      statusEl.style.borderLeftColor = '#dc2626';
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Camera Capture — Posture Monitor</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      background: #111827;
+      color: #f9fafb;
+      padding: 16px;
+    }
+    main {
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    h1 {
+      font-size: 1.4rem;
+      margin: 0 0 8px 0;
+    }
+    .stats-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+      font-size: 0.85rem;
+    }
+    .badge {
+      background: #1f2937;
+      padding: 6px 12px;
+      border-radius: 6px;
+      color: #93c5fd;
+      border: 1px solid #374151;
+    }
+    .btn-group {
+      margin: 10px 0;
+      display: flex;
+      gap: 10px;
+    }
+    button {
+      padding: 12px 18px;
+      border: 0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s ease;
+    }
+    #start {
+      background: #16a34a;
+      color: white;
+    }
+    #stop {
+      background: #dc2626;
+      color: white;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    video {
+      width: 100%;
+      background: #000;
+      border-radius: 10px;
+      margin-top: 10px;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+    }
+    .status {
+      padding: 10px 14px;
+      background: #1f2937;
+      border-radius: 8px;
+      margin-top: 10px;
+      font-size: 0.9rem;
+      border-left: 4px solid #3b82f6;
+    }
+    .nav-links {
+      margin-top: 18px;
+      font-size: 0.85rem;
+    }
+    a {
+      color: #60a5fa;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Camera Stream (Flow-Controlled)</h1>
+    <div class="stats-bar">
+      <div class="badge" id="fpsStat">FPS: 0</div>
+      <div class="badge" id="latencyStat">Latency: -- ms</div>
+    </div>
+
+    <div class="btn-group">
+      <button id="start">▶ Start streaming</button>
+      <button id="stop" disabled>⏹ Stop</button>
+    </div>
+
+    <div class="status" id="status">Camera not started. Allow permissions and press Start.</div>
+    <video id="preview" autoplay playsinline muted></video>
+    <canvas id="canvas" style="display:none"></canvas>
+
+    <div class="nav-links">
+      <a href="/dashboard" target="_blank">Open Dashboard in new tab ↗</a> &bull; <a href="/">Home</a>
+    </div>
+  </main>
+
+  <script>
+    let stream = null;
+    let ws = null;
+    let waitingForAck = false;
+    let lastSendTimestamp = 0;
+    let frameCounter = 0;
+    let lastFpsCalculation = performance.now();
+    let captureLoopTimer = null;
+
+    const video = document.getElementById('preview');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: false });
+    const statusEl = document.getElementById('status');
+    const fpsStat = document.getElementById('fpsStat');
+    const latencyStat = document.getElementById('latencyStat');
+    const startBtn = document.getElementById('start');
+    const stopBtn = document.getElementById('stop');
+
+    async function start() {
+      if (stream) return;
+      try {
+        startBtn.disabled = true;
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 640 },
+            height: { ideal: 480 }
+          },
+          audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
+
+        const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        ws = new WebSocket(`${proto}//${location.host}/ws/capture`);
+
+        ws.onopen = () => {
+          statusEl.textContent = 'Connected. Live streaming with zero-lag flow control.';
+          statusEl.style.borderLeftColor = '#16a34a';
+          stopBtn.disabled = false;
+          waitingForAck = false;
+          // Start the capture loop
+          requestNextFrame(0);
+        };
+
+        ws.onmessage = (event) => {
+          if (event.data === 'ack') {
+            const rtt = Math.round(performance.now() - lastSendTimestamp);
+            latencyStat.textContent = `Latency: ${rtt} ms`;
+            waitingForAck = false;
+            // Frame completed by server -> immediately schedule the next camera frame
+            requestNextFrame(0);
+          }
+        };
+
+        ws.onclose = () => {
+          statusEl.textContent = 'WebSocket disconnected.';
+          statusEl.style.borderLeftColor = '#dc2626';
+          stopStreaming(false);
+        };
+
+        ws.onerror = () => {
+          statusEl.textContent = 'WebSocket connection error.';
+          statusEl.style.borderLeftColor = '#dc2626';
+        };
+      } catch (err) {
+        startBtn.disabled = false;
+        statusEl.textContent = 'Camera error: ' + err.message;
+        statusEl.style.borderLeftColor = '#dc2626';
+      }
+    }
+
+    function requestNextFrame(delayMs = 0) {
+      if (captureLoopTimer) clearTimeout(captureLoopTimer);
+      captureLoopTimer = setTimeout(captureAndSend, delayMs);
+    }
+
+    function captureAndSend() {
+      if (!video.videoWidth || !ws || ws.readyState !== WebSocket.OPEN) {
+        return;
+      }
+
+      const now = performance.now();
+
+      // Safety timeout: if server ACK was dropped/delayed over 1000ms, unlock
+      if (waitingForAck && (now - lastSendTimestamp > 1000)) {
+        waitingForAck = false;
+      }
+
+      // Never send if still waiting for previous frame or browser socket buffer is not empty
+      if (waitingForAck || ws.bufferedAmount > 0) {
+        requestNextFrame(20);
+        return;
+      }
+
+      // Max frame rate limiter: ~16 FPS (~60ms) to ensure stability
+      const elapsedSinceSend = now - lastSendTimestamp;
+      if (elapsedSinceSend < 60) {
+        requestNextFrame(60 - elapsedSinceSend);
+        return;
+      }
+
+      // Downscale to 480 width for fast transmission and ideal YOLO matching
+      const targetWidth = Math.min(480, video.videoWidth);
+      const targetHeight = Math.round(video.videoHeight * targetWidth / video.videoWidth);
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+
+      ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+      waitingForAck = true;
+      lastSendTimestamp = performance.now();
+
+      canvas.toBlob((blob) => {
+        if (blob && ws && ws.readyState === WebSocket.OPEN) {
+          blob.arrayBuffer().then((buffer) => {
+            if (ws.bufferedAmount === 0) {
+              ws.send(buffer);
+              updateFpsCounter();
+            } else {
+              waitingForAck = false;
+              requestNextFrame(20);
+            }
+          }).catch(() => {
+            waitingForAck = false;
+            requestNextFrame(30);
+          });
+        } else {
+          waitingForAck = false;
+          requestNextFrame(30);
+        }
+      }, 'image/jpeg', 0.65);
+    }
+
+    function updateFpsCounter() {
+      frameCounter++;
+      const now = performance.now();
+      const duration = now - lastFpsCalculation;
+      if (duration >= 1000) {
+        fpsStat.textContent = `FPS: ${((frameCounter * 1000) / duration).toFixed(1)}`;
+        frameCounter = 0;
+        lastFpsCalculation = now;
+      }
+    }
+
+    function stopStreaming(closeSocket = true) {
+      if (captureLoopTimer) {
+        clearTimeout(captureLoopTimer);
+        captureLoopTimer = null;
+      }
+      if (closeSocket && ws) {
+        ws.close();
+        ws = null;
+      }
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
+      video.srcObject = null;
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+      waitingForAck = false;
+      if (closeSocket) {
+        statusEl.textContent = 'Streaming stopped.';
+        statusEl.style.borderLeftColor = '#3b82f6';
+      }
+    }
+
+    startBtn.onclick = start;
+    stopBtn.onclick = () => stopStreaming(true);
+    window.addEventListener('beforeunload', () => stopStreaming(true));
+  </script>
+</body>
+</html>
