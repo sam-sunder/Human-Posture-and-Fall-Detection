@@ -1,6 +1,9 @@
 from __future__ import annotations
 import os
 
+# --- Database & Storage Settings ---
+DB_PATH: str = os.getenv("DB_PATH", "patients.db")
+
 # --- Model & Performance Settings ---
 MODEL_NAME: str = os.getenv("YOLO_MODEL", "yolo11n-pose.pt")
 INFERENCE_SIZE: int = int(os.getenv("INFERENCE_SIZE", "384"))
@@ -11,6 +14,8 @@ MIN_CONFIDENCE: float = float(os.getenv("MIN_CONFIDENCE", "0.20"))
 # --- Posture Classification & Prolonged Posture Settings ---
 # Time (seconds) in unchanged posture before triggering a prolonged posture alert
 PROLONGED_POSTURE_SECONDS: float = float(os.getenv("PROLONGED_POSTURE_SECONDS", "8.0"))
+# Minimum duration threshold (seconds) for recording a posture epoch to the database
+MIN_POSTURE_LOG_DURATION: float = float(os.getenv("MIN_POSTURE_LOG_DURATION", "5.0"))
 # Angle thresholds relative to vertical (degrees)
 TORSO_UPRIGHT_ANGLE: float = float(os.getenv("TORSO_UPRIGHT_ANGLE", "35.0"))
 TORSO_LYING_ANGLE: float = float(os.getenv("TORSO_LYING_ANGLE", "55.0"))

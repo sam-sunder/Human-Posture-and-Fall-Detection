@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 from collections import deque
-from typing import Any, Deque, Dict, List, Optional, Tuple
+from typing import Any, Callable, Deque, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -16,6 +16,7 @@ from config import (
     INFERENCE_SIZE,
     JPEG_QUALITY,
     MIN_CONFIDENCE,
+    MIN_POSTURE_LOG_DURATION,
     MODEL_NAME,
     PROLONGED_POSTURE_SECONDS,
     TORSO_LYING_ANGLE,
@@ -40,8 +41,17 @@ SKELETON_PAIRS: List[Tuple[int, int]] = [
 
 
 class PostureTracker:
-    def __init__(self, model_path: str = MODEL_NAME) -> None:
+    def __init__(
+        self,
+        model_path: str = MODEL_NAME,
+        patient_id: Optional[int] = None,
+        patient_name: str = "Subject",
+        on_event_log: Optional[Callable[[int, str, str, float, str], None]] = None,
+    ) -> None:
         self.model_path: str = model_path
+        self.patient_id: Optional[int] = patient_id
+        self.patient_name: str = patient_name
+        self.on_event_log: Optional[Callable[[int, str, str, float, str], None]] = on_event_log
         self._model: Optional[YOLO] = None
 
         # Trajectory history for dynamic velocity & angle tracking
@@ -53,6 +63,7 @@ class PostureTracker:
         self.posture_start_time: Optional[float] = None
         self.posture_duration: float = 0.0
         self.prolonged_alert: bool = False
+        self._prolonged_logged: bool = False
 
         # Fall detection FSM
         # States: "NORMAL", "DESCENT_DETECTED", "FALL_CONFIRMED"
@@ -72,11 +83,27 @@ class PostureTracker:
         return self._model
 
     def reset(self) -> None:
+        # If previous posture was held for >= 5s, log it before resetting
+        if (
+            self.current_posture not in ("UNKNOWN", "NO PERSON")
+            and self.posture_duration >= MIN_POSTURE_LOG_DURATION
+            and self.patient_id is not None
+            and self.on_event_log is not None
+        ):
+            self.on_event_log(
+                self.patient_id,
+                "NORMAL_POSTURE",
+                self.current_posture,
+                self.posture_duration,
+                f"Completed posture episode of {self.posture_duration:.1f}s",
+            )
+
         self.history.clear()
         self.current_posture = "UNKNOWN"
         self.posture_start_time = None
         self.posture_duration = 0.0
         self.prolonged_alert = False
+        self._prolonged_logged = False
         self.fall_state = "NORMAL"
         self.descent_time = None
         self.lying_start_time = None
@@ -87,7 +114,6 @@ class PostureTracker:
     def _classify_posture(self, torso_angle: Optional[float], aspect_ratio: float) -> str:
         """Classifies human posture based on torso inclination angle and bounding box geometry."""
         if torso_angle is None:
-            # Fallback to aspect ratio if keypoints are occluded
             if aspect_ratio >= FALL_ASPECT_RATIO_THRESHOLD:
                 return "LYING DOWN"
             elif aspect_ratio <= 0.65:
@@ -98,7 +124,6 @@ class PostureTracker:
         if torso_angle >= TORSO_LYING_ANGLE or aspect_ratio >= FALL_ASPECT_RATIO_THRESHOLD:
             return "LYING DOWN"
         elif torso_angle <= TORSO_UPRIGHT_ANGLE:
-            # Distinguish standing vs sitting via aspect ratio
             if aspect_ratio <= 0.68:
                 return "STANDING"
             else:
@@ -114,16 +139,43 @@ class PostureTracker:
         cy: float,
         box_h: float,
     ) -> None:
-        """Monitors posture continuity and triggers alert if unchanged beyond threshold."""
+        """Monitors posture continuity, logs normal posture epochs >= 5s, and logs prolonged alerts."""
         if self.posture_start_time is None or detected_posture != self.current_posture:
+            # Posture changed! If the previous posture lasted >= 5.0 seconds, log it to SQLite
+            if (
+                self.current_posture not in ("UNKNOWN", "NO PERSON")
+                and self.posture_duration >= MIN_POSTURE_LOG_DURATION
+                and self.patient_id is not None
+                and self.on_event_log is not None
+            ):
+                self.on_event_log(
+                    self.patient_id,
+                    "NORMAL_POSTURE",
+                    self.current_posture,
+                    self.posture_duration,
+                    f"Maintained {self.current_posture} for {self.posture_duration:.1f}s (Threshold: {MIN_POSTURE_LOG_DURATION:.0f}s)",
+                )
+
+            # Reset timer for the newly detected posture
             self.current_posture = detected_posture
             self.posture_start_time = now
             self.posture_duration = 0.0
             self.prolonged_alert = False
+            self._prolonged_logged = False
         else:
             self.posture_duration = now - self.posture_start_time
             if self.posture_duration >= PROLONGED_POSTURE_SECONDS:
                 self.prolonged_alert = True
+                # Log prolonged posture event once per prolonged episode
+                if not self._prolonged_logged and self.patient_id is not None and self.on_event_log is not None:
+                    self.on_event_log(
+                        self.patient_id,
+                        "PROLONGED_POSTURE",
+                        self.current_posture,
+                        self.posture_duration,
+                        f"Subject held prolonged {self.current_posture} for >= {PROLONGED_POSTURE_SECONDS:.0f}s",
+                    )
+                    self._prolonged_logged = True
 
     def _update_fall_detection(
         self,
@@ -138,7 +190,6 @@ class PostureTracker:
         downward_vel: float = 0.0
         angular_vel: float = 0.0
 
-        # Look back ~0.25 to 0.45 seconds in trajectory history to calculate velocity
         if len(self.history) >= 1:
             target_time = now - 0.35
             closest: Optional[Tuple[float, float, Optional[float], float, float, float]] = None
@@ -152,9 +203,7 @@ class PostureTracker:
 
             dt = now - closest[0]
             if dt >= 0.08:
-                # Downward velocity in normalized body heights per second
                 downward_vel = (cy - closest[1]) / (box_h * dt)
-
                 if torso_angle is not None and closest[2] is not None:
                     angle_diff = abs(torso_angle - closest[2])
                     angle_diff = min(angle_diff, 360.0 - angle_diff)
@@ -181,7 +230,6 @@ class PostureTracker:
             if self.descent_time is not None:
                 time_since_descent = now - self.descent_time
                 if time_since_descent <= 3.5:
-                    # Check if person is on the ground / lying down
                     if posture == "LYING DOWN" or aspect_ratio >= FALL_ASPECT_RATIO_THRESHOLD:
                         if self.lying_start_time is None:
                             self.lying_start_time = now
@@ -190,14 +238,21 @@ class PostureTracker:
                         if immobility_time >= FALL_CONFIRMATION_SECONDS:
                             self.fall_state = "FALL_CONFIRMED"
                             self.fall_alert = True
+                            # Log fall alert to SQLite
+                            if self.patient_id is not None and self.on_event_log is not None:
+                                self.on_event_log(
+                                    self.patient_id,
+                                    "FALL_ALERT",
+                                    "LYING DOWN",
+                                    immobility_time,
+                                    f"Rapid descent ({downward_vel:.1f} h/s) followed by floor immobility ({immobility_time:.1f}s)",
+                                )
                     else:
-                        # If person quickly recovers upright posture, cancel false alarm
                         if posture in ("STANDING", "SITTING") and (time_since_descent >= 1.0):
                             self.fall_state = "NORMAL"
                             self.descent_time = None
                             self.lying_start_time = None
                 else:
-                    # Descent window expired without confirmation
                     self.fall_state = "NORMAL"
                     self.descent_time = None
                     self.lying_start_time = None
@@ -208,10 +263,18 @@ class PostureTracker:
                 if self.fall_cooldown_time is None:
                     self.fall_cooldown_time = now
                 elif now - self.fall_cooldown_time >= 2.0:
-                    # Reset after person stays upright for 2 seconds
                     self.fall_state = "NORMAL"
                     self.fall_alert = False
                     self.fall_cooldown_time = None
+                    # Log recovery to SQLite
+                    if self.patient_id is not None and self.on_event_log is not None:
+                        self.on_event_log(
+                            self.patient_id,
+                            "FALL_RECOVERY",
+                            posture,
+                            2.0,
+                            "Subject successfully resumed upright posture",
+                        )
             else:
                 self.fall_cooldown_time = None
 
@@ -255,13 +318,11 @@ class PostureTracker:
                 keypoints = k
                 if len(k) >= 13:
                     ls, rs, lh, rh = k[5], k[6], k[11], k[12]
-                    # Check shoulder & hip keypoint confidence
                     if min(ls[2], rs[2], lh[2], rh[2]) >= 0.15:
                         shoulder = (ls[:2] + rs[:2]) / 2.0
                         hip = (lh[:2] + rh[:2]) / 2.0
                         dx = shoulder[0] - hip[0]
                         dy = shoulder[1] - hip[1]
-                        # Angle with vertical axis
                         torso_angle = float(np.degrees(np.arctan2(abs(dx), -dy)))
 
             detected = True
@@ -320,7 +381,6 @@ class PostureTracker:
 
             x1, y1, x2, y2 = box
             cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 3)
-            # Label banner
             (text_w, text_h), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.65, 2)
             cv2.rectangle(
                 frame,
@@ -343,6 +403,8 @@ class PostureTracker:
             # Save latest telemetry
             self.latest_telemetry = {
                 "detected": True,
+                "patient_id": self.patient_id,
+                "patient_name": self.patient_name,
                 "posture": posture,
                 "posture_duration": round(self.posture_duration, 1),
                 "prolonged_alert": self.prolonged_alert,
@@ -357,6 +419,8 @@ class PostureTracker:
             downward_vel = 0.0
             self.latest_telemetry = {
                 "detected": False,
+                "patient_id": self.patient_id,
+                "patient_name": self.patient_name,
                 "posture": "NO PERSON",
                 "posture_duration": 0.0,
                 "prolonged_alert": False,
@@ -370,7 +434,7 @@ class PostureTracker:
         # --- Draw Clinical HUD Overlay ---
         overlay = frame.copy()
         hud_w = min(w - 1, 460)
-        hud_h = min(h - 1, 185)
+        hud_h = min(h - 1, 195)
         cv2.rectangle(overlay, (0, 0), (hud_w, hud_h), (18, 24, 38), -1)
         frame = cv2.addWeighted(overlay, 0.85, frame, 0.15, 0)
 
@@ -395,12 +459,14 @@ class PostureTracker:
 
         angle_str = f"{torso_angle:.1f}°" if torso_angle is not None else "n/a"
 
+        patient_badge = f"{self.patient_name}" if self.patient_id else "Live Subject"
+
         lines = [
+            ("Patient:", patient_badge, (255, 255, 255)),
             ("Fall Monitor:", fall_text, fall_color),
             ("Posture:", posture_status, posture_color),
             ("Torso Angle:", f"{angle_str} (Limit: {TORSO_UPRIGHT_ANGLE:.0f}° / {TORSO_LYING_ANGLE:.0f}°)", (200, 200, 200)),
             ("Vertical Velocity:", f"{downward_vel:+.2f} h/s (Trigger: {FALL_VELOCITY_THRESHOLD:.1f})", (200, 200, 200)),
-            ("Aspect Ratio:", f"{aspect_ratio:.2f} (Floor: > {FALL_ASPECT_RATIO_THRESHOLD:.2f})", (200, 200, 200)),
         ]
 
         y_pos = 26
@@ -418,27 +484,26 @@ class PostureTracker:
             cv2.putText(
                 frame,
                 val,
-                (145, y_pos),
+                (140, y_pos),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.48,
                 col,
-                1 if col == (200, 200, 200) else 2,
+                2 if col in (fall_color, posture_color) else 1,
                 cv2.LINE_AA,
             )
             y_pos += 26
 
         # Critical full-frame flashing banner if fall is confirmed
         if self.fall_alert:
-            # Flashing bar across top of video
             flash = int(now * 4) % 2 == 0
             banner_col = (0, 0, 255) if flash else (0, 50, 180)
             cv2.rectangle(frame, (0, 0), (w, 40), banner_col, -1)
             cv2.putText(
                 frame,
-                "EMERGENCY: FALL DETECTED - SUBJECT UNRESPONSIVE",
-                (max(10, int(w / 2 - 230)), 28),
+                f"EMERGENCY: FALL DETECTED - {self.patient_name.upper()} UNRESPONSIVE",
+                (max(10, int(w / 2 - 240)), 28),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.62,
+                0.58,
                 (255, 255, 255),
                 2,
                 cv2.LINE_AA,

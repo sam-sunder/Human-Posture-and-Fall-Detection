@@ -3,194 +3,793 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Live Posture Dashboard</title>
+  <title>Clinical Posture & Fall Detection Portal</title>
   <style>
+    :root {
+      --bg: #0b1220;
+      --card-bg: #151f32;
+      --card-border: #223049;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --text: #f9fafb;
+      --text-muted: #94a3b8;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --success: #10b981;
+    }
+    * { box-sizing: border-box; }
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       margin: 0;
-      background: #0b1220;
-      color: #f9fafb;
-      padding: 16px;
-    }
-    main {
-      max-width: 960px;
-      margin: 0 auto;
+      background: var(--bg);
+      color: var(--text);
+      padding: 20px;
     }
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 12px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 24px;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 16px;
     }
     h1 {
       margin: 0;
-      font-size: 1.4rem;
-    }
-    .stats-bar {
+      font-size: 1.6rem;
       display: flex;
+      align-items: center;
       gap: 10px;
     }
-    .badge {
-      font-size: 0.85rem;
-      background: #172033;
-      padding: 6px 12px;
-      border-radius: 8px;
-      color: #93c5fd;
-      border: 1px solid #28354f;
+    .header-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
     }
-    .video-container {
+    button, .btn {
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 0;
+      transition: all 0.15s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-secondary { background: #26354f; color: var(--text); border: 1px solid var(--card-border); }
+    .btn-secondary:hover { background: #324363; }
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .badge-live { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #059669; }
+    .badge-offline { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border: 1px solid #475569; }
+    .badge-fall { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #dc2626; animation: pulse 1.2s infinite; }
+    .badge-prolonged { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #d97706; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .stat-val { font-size: 1.8rem; font-weight: 700; margin-top: 4px; }
+    .stat-lbl { font-size: 0.85rem; color: var(--text-muted); }
+    .patients-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    .patient-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 20px;
+      transition: transform 0.15s ease, border-color 0.15s ease;
       position: relative;
+    }
+    .patient-card:hover {
+      border-color: #3b82f6;
+      transform: translateY(-2px);
+    }
+    .patient-card.has-alert {
+      border-color: var(--danger);
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.25);
+    }
+    .patient-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+    .patient-name { font-size: 1.15rem; font-weight: 700; margin: 0; }
+    .patient-room { font-size: 0.85rem; color: #60a5fa; font-weight: 600; margin-top: 2px; }
+    .patient-meta {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin: 10px 0 16px 0;
+      line-height: 1.5;
+    }
+    .patient-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 14px;
+      border-top: 1px solid var(--card-border);
+    }
+    /* Monitoring View Section */
+    #monitorSection {
+      display: none;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 30px;
+    }
+    .monitor-layout {
+      display: grid;
+      grid-template-columns: 3fr 2fr;
+      gap: 24px;
+    }
+    @media (max-width: 900px) {
+      .monitor-layout { grid-template-columns: 1fr; }
+    }
+    .video-viewport {
       background: #000;
       border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-      min-height: 260px;
+      min-height: 320px;
       display: flex;
       align-items: center;
       justify-content: center;
+      position: relative;
+      border: 1px solid #1e293b;
     }
-    .video {
+    .video-stream {
       width: 100%;
       height: auto;
-      max-height: 75vh;
-      display: block;
+      max-height: 520px;
       object-fit: contain;
+      display: block;
     }
-    .status {
+    .alert-banner {
+      display: none;
+      padding: 14px 18px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .alert-banner.fall {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid var(--danger);
+      color: #fca5a5;
+    }
+    .alert-banner.prolonged {
+      background: rgba(245, 158, 11, 0.2);
+      border: 1px solid var(--warning);
+      color: #fcd34d;
+    }
+    .logs-table-container {
+      background: #0d1526;
+      border-radius: 10px;
+      border: 1px solid var(--card-border);
+      max-height: 380px;
+      overflow-y: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid #1a253b;
+    }
+    th {
+      background: #131c30;
+      color: var(--text-muted);
+      position: sticky;
+      top: 0;
+    }
+    tr:hover { background: rgba(255,255,255,0.02); }
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 28px;
+      max-width: 500px;
+      width: 100%;
+    }
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+    input, select, textarea {
+      width: 100%;
       padding: 10px 14px;
-      background: #172033;
+      background: #0d1526;
+      border: 1px solid var(--card-border);
       border-radius: 8px;
-      margin: 12px 0;
-      font-size: 0.9rem;
-      border-left: 4px solid #3b82f6;
+      color: var(--text);
+      font-size: 14px;
     }
-    .hint {
-      color: #94a3b8;
-      font-size: 0.85rem;
-      line-height: 1.5;
-    }
-    a {
-      color: #60a5fa;
-      text-decoration: none;
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
     }
   </style>
 </head>
 <body>
-  <main>
-    <header>
-      <h1>Live Posture Dashboard</h1>
-      <div class="stats-bar">
-        <div class="badge" id="fpsDisplay">FPS: 0</div>
-        <div class="badge" id="latencyDisplay">Zero-Buffer Sync: Active</div>
+
+  <header>
+    <h1>🏥 Clinical Posture & Fall Detection Portal</h1>
+    <div class="header-actions">
+      <button class="btn btn-secondary" id="soundToggleBtn" onclick="toggleSound()">🔊 Audio Alerts: ON</button>
+      <button class="btn btn-secondary" onclick="testAudioAlert('fall')">🔔 Test Fall Siren</button>
+      <button class="btn btn-secondary" onclick="testAudioAlert('prolonged')">🎵 Test Chime</button>
+      <button class="btn btn-primary" onclick="openRegisterModal()">+ Register Patient</button>
+      <a href="/capture" target="_blank" class="btn btn-secondary">📱 Open Camera App</a>
+    </div>
+  </header>
+
+  <!-- High-level Summary Metrics -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-lbl">Registered Patients</div>
+      <div class="stat-val" id="statTotalPatients">--</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-lbl">Active Live Streams</div>
+      <div class="stat-val" style="color: #34d399;" id="statActiveStreams">--</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-lbl">Active Alerts (Falls / Immobility)</div>
+      <div class="stat-val" style="color: #f87171;" id="statActiveAlerts">0</div>
+    </div>
+  </div>
+
+  <!-- Dedicated Live Patient Monitoring View -->
+  <section id="monitorSection">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
+      <div>
+        <h2 style="margin:0;" id="monitorPatientName">Patient Monitoring</h2>
+        <span style="font-size:0.85rem; color:#60a5fa;" id="monitorPatientRoom">Room --</span> &bull; 
+        <span style="font-size:0.85rem; color:var(--text-muted);" id="monitorClientId">Client: --</span>
       </div>
-    </header>
-
-    <div class="status" id="status">Connecting to server…</div>
-
-    <div class="video-container">
-      <img class="video" id="feed" alt="Live annotated stream">
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-danger" id="resetAlertBtn" onclick="resetActiveAlert()" style="display:none;">Reset Active Alert</button>
+        <button class="btn btn-secondary" onclick="closeMonitor()">✕ Close Monitor</button>
+      </div>
     </div>
 
-    <p class="hint">
-      Open <a href="/capture" target="_blank">/capture</a> on your phone to stream live camera video. Frames are pulled on demand to guarantee zero lag accumulation.
-    </p>
-  </main>
+    <!-- Real-time Alert Banner -->
+    <div id="activeAlertBanner" class="alert-banner" style="display:none;">
+      <span id="alertBannerText">⚠️ ALERT DETECTED</span>
+      <button class="btn btn-secondary" onclick="resetActiveAlert()">Acknowledge & Dismiss</button>
+    </div>
+
+    <div class="monitor-layout">
+      <!-- Video Live Stream Container -->
+      <div>
+        <div class="video-viewport">
+          <img class="video-stream" id="monitorFeed" alt="Live Annotated Patient Stream">
+          <div id="noStreamOverlay" style="position:absolute; text-align:center; padding:20px; color:#94a3b8;">
+            <p style="font-size:1.1rem; margin-bottom:8px;">Camera stream offline for this patient.</p>
+            <p style="font-size:0.85rem;">Open camera stream with client ID: <code style="color:#60a5fa;" id="cameraCodeHint">--</code></p>
+            <button class="btn btn-secondary" onclick="copyCameraLink()">📋 Copy Camera Link for Phone</button>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:10px; font-size:13px; color:var(--text-muted);">
+          <span id="monitorFps">FPS: --</span>
+          <span id="monitorLatency">Zero-Buffer Protocol: Active</span>
+        </div>
+      </div>
+
+      <!-- Patient Bio & SQLite Posture Event Logs Table -->
+      <div>
+        <h3 style="margin-top:0; margin-bottom:12px; font-size:1.1rem; display:flex; justify-content:space-between; align-items:center;">
+          <span>Posture & Fall Event History</span>
+          <button class="btn btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="loadCurrentPatientLogs()">↻ Refresh</button>
+        </h3>
+        <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">
+          Logs posture episodes maintained &ge; 5s, prolonged sedentary states, and sudden fall events in SQLite.
+        </p>
+        <div class="logs-table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Time (UTC)</th>
+                <th>Event</th>
+                <th>Posture</th>
+                <th>Duration</th>
+                <th>Clinical Details</th>
+              </tr>
+            </thead>
+            <tbody id="logsTableBody">
+              <tr><td colspan="5" style="text-align:center; color:#64748b;">Loading event logs…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Patient Directory Section -->
+  <h2 style="margin-bottom:16px; font-size:1.3rem;">Registered Patients</h2>
+  <div class="patients-grid" id="patientsGrid">
+    <div style="color:var(--text-muted);">Loading patients…</div>
+  </div>
+
+  <!-- Register Patient Modal -->
+  <div class="modal-overlay" id="registerModal">
+    <div class="modal">
+      <h2 style="margin-top:0; font-size:1.3rem;">Register New Patient</h2>
+      <form id="registerForm" onsubmit="handleRegisterSubmit(event)">
+        <div class="form-group">
+          <label for="pName">Full Name</label>
+          <input type="text" id="pName" required placeholder="e.g. Margaret Jenkins">
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label for="pAge">Age</label>
+            <input type="number" id="pAge" required value="75">
+          </div>
+          <div class="form-group">
+            <label for="pGender">Gender</label>
+            <select id="pGender" required>
+              <option value="Female">Female</option>
+              <option value="Male">Male</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label for="pRoom">Room / Bed Number</label>
+            <input type="text" id="pRoom" required placeholder="e.g. Room 204-B">
+          </div>
+          <div class="form-group">
+            <label for="pClientId">Client / Camera ID</label>
+            <input type="text" id="pClientId" required placeholder="e.g. client-204">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="pNotes">Medical & Fall Risk Notes</label>
+          <textarea id="pNotes" rows="2" placeholder="e.g. Unsteady gait, mild cognitive impairment."></textarea>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+          <button type="button" class="btn btn-secondary" onclick="closeRegisterModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Patient</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script>
-    const img = document.getElementById('feed');
-    const statusEl = document.getElementById('status');
-    const fpsDisplay = document.getElementById('fpsDisplay');
-
+    let patients = [];
+    let activePatientId = null;
+    let monitorWs = null;
+    let currentObjectUrl = null;
+    let audioContext = null;
+    let soundEnabled = true;
+    let lastSoundTime = 0;
     let frameCount = 0;
     let lastFpsUpdate = performance.now();
-    let currentObjectUrl = null;
-    let lastFrameTime = performance.now();
 
-    function updateFps() {
-      frameCount++;
+    // --- Web Audio API Synthesizer ---
+    function initAudio() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioContext.state === 'suspended') {
+        audioContext.resume();
+      }
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      initAudio();
+      const btn = document.getElementById('soundToggleBtn');
+      btn.textContent = soundEnabled ? '🔊 Audio Alerts: ON' : '🔇 Audio Alerts: MUTED';
+      btn.style.borderColor = soundEnabled ? 'var(--card-border)' : 'var(--danger)';
+    }
+
+    function playTone(freq, type, duration, delay = 0) {
+      if (!soundEnabled) return;
+      initAudio();
+      setTimeout(() => {
+        try {
+          const osc = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+          gain.gain.setValueAtTime(0.25, audioContext.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(audioContext.destination);
+          osc.start();
+          osc.stop(audioContext.currentTime + duration);
+        } catch(e) {}
+      }, delay);
+    }
+
+    function testAudioAlert(type) {
+      initAudio();
+      if (type === 'fall') {
+        // High urgency alternating alarm
+        playTone(880, 'sawtooth', 0.18, 0);
+        playTone(660, 'sawtooth', 0.18, 200);
+        playTone(880, 'sawtooth', 0.18, 400);
+        playTone(660, 'sawtooth', 0.25, 600);
+      } else {
+        // Prolonged posture chime
+        playTone(587.33, 'sine', 0.2, 0);
+        playTone(880, 'sine', 0.35, 180);
+      }
+    }
+
+    function triggerAlertAudio(isFall, isProlonged) {
       const now = performance.now();
-      const elapsed = now - lastFpsUpdate;
-      if (elapsed >= 1000) {
-        fpsDisplay.textContent = `FPS: ${((frameCount * 1000) / elapsed).toFixed(1)}`;
-        frameCount = 0;
-        lastFpsUpdate = now;
+      // Throttle audio alerts so they sound at most every 3.5 seconds
+      if (now - lastSoundTime < 3500) return;
+      if (isFall) {
+        lastSoundTime = now;
+        testAudioAlert('fall');
+      } else if (isProlonged) {
+        lastSoundTime = now;
+        testAudioAlert('prolonged');
       }
     }
 
-    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${proto}//${location.host}/ws/dashboard`);
-    ws.binaryType = 'blob';
+    // --- Patient Management ---
+    async function loadPatients() {
+      try {
+        const res = await fetch('/api/patients');
+        patients = await res.json();
+        renderPatients();
+        updateStats();
 
-    function requestNextFrame() {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send('ready');
-      }
-    }
-
-    ws.onopen = () => {
-      statusEl.textContent = 'Connected. Waiting for phone camera stream…';
-      statusEl.style.borderLeftColor = '#3b82f6';
-      // Request the first frame
-      requestNextFrame();
-    };
-
-    img.onload = () => {
-      lastFrameTime = performance.now();
-      updateFps();
-      // Clean up previously displayed frame blob
-      if (img.dataset.prevUrl) {
-        URL.revokeObjectURL(img.dataset.prevUrl);
-        delete img.dataset.prevUrl;
-      }
-      // Pull the next frame only after current frame is decoded and rendered
-      requestNextFrame();
-    };
-
-    img.onerror = () => {
-      requestNextFrame();
-    };
-
-    ws.onmessage = (event) => {
-      if (typeof event.data === 'string') {
-        // Keepalive / wait notice when no camera is streaming yet
-        if (event.data === 'wait') {
-          setTimeout(requestNextFrame, 300);
+        // If a patient monitor is active, synchronize alerts and telemetry
+        if (activePatientId) {
+          const current = patients.find(p => p.id === activePatientId);
+          if (current) {
+            handleTelemetry({
+              is_streaming: current.is_streaming,
+              fall_alert: current.fall_alert,
+              prolonged_alert: current.prolonged_alert,
+              posture: current.current_posture,
+              posture_duration: current.posture_duration
+            });
+          }
         }
+      } catch (err) {
+        console.error('Error fetching patients:', err);
+      }
+    }
+
+    function updateStats() {
+      document.getElementById('statTotalPatients').textContent = patients.length;
+      const activeStreams = patients.filter(p => p.is_streaming).length;
+      document.getElementById('statActiveStreams').textContent = activeStreams;
+      const activeAlerts = patients.filter(p => p.fall_alert || p.prolonged_alert).length;
+      const alertEl = document.getElementById('statActiveAlerts');
+      alertEl.textContent = activeAlerts;
+      alertEl.style.color = activeAlerts > 0 ? '#ef4444' : '#10b981';
+    }
+
+    function renderPatients() {
+      const grid = document.getElementById('patientsGrid');
+      if (!patients.length) {
+        grid.innerHTML = '<div style="color:var(--text-muted);">No patients registered yet. Click "+ Register Patient" above.</div>';
         return;
       }
 
-      // Received binary image frame
-      const nextUrl = URL.createObjectURL(event.data);
-      if (currentObjectUrl) {
-        img.dataset.prevUrl = currentObjectUrl;
-      }
-      currentObjectUrl = nextUrl;
-      img.src = nextUrl;
+      grid.innerHTML = patients.map(p => {
+        let badgeHtml = '';
+        if (p.fall_alert) {
+          badgeHtml = '<span class="badge badge-fall">🚨 Fall Confirmed</span>';
+        } else if (p.prolonged_alert) {
+          badgeHtml = `<span class="badge badge-prolonged">⚠️ Prolonged Posture</span>`;
+        } else if (p.is_streaming) {
+          badgeHtml = `<span class="badge badge-live">● Live (${p.current_posture})</span>`;
+        } else {
+          badgeHtml = '<span class="badge badge-offline">Offline</span>';
+        }
 
-      if (statusEl.textContent !== 'Receiving live video') {
-        statusEl.textContent = 'Receiving live video';
-        statusEl.style.borderLeftColor = '#16a34a';
-      }
-    };
+        const hasAlertClass = (p.fall_alert || p.prolonged_alert) ? 'has-alert' : '';
 
-    // Heartbeat recovery to re-request if any frame was dropped
+        return `
+          <div class="patient-card ${hasAlertClass}">
+            <div class="patient-card-header">
+              <div>
+                <h3 class="patient-name">${escapeHtml(p.name)}</h3>
+                <div class="patient-room">${escapeHtml(p.room_number)} &bull; ${p.age}y (${escapeHtml(p.gender)})</div>
+              </div>
+              <div>${badgeHtml}</div>
+            </div>
+            <div class="patient-meta">
+              <div><strong>Client / Cam ID:</strong> <code>${escapeHtml(p.client_id)}</code></div>
+              <div style="margin-top:4px;"><strong>Notes:</strong> ${escapeHtml(p.notes || 'None')}</div>
+            </div>
+            <div class="patient-footer">
+              <span style="font-size:12px; color:var(--text-muted);">
+                ${p.is_streaming ? 'Streaming now' : 'Camera ready'}
+              </span>
+              <button class="btn btn-primary" style="padding:6px 14px; font-size:13px;" onclick="openMonitor(${p.id})">
+                👁️ View Live Stream
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openRegisterModal() {
+      document.getElementById('registerModal').style.display = 'flex';
+    }
+
+    function closeRegisterModal() {
+      document.getElementById('registerModal').style.display = 'none';
+      document.getElementById('registerForm').reset();
+    }
+
+    async function handleRegisterSubmit(e) {
+      e.preventDefault();
+      const payload = {
+        name: document.getElementById('pName').value,
+        age: parseInt(document.getElementById('pAge').value, 10),
+        gender: document.getElementById('pGender').value,
+        room_number: document.getElementById('pRoom').value,
+        client_id: document.getElementById('pClientId').value,
+        notes: document.getElementById('pNotes').value
+      };
+      try {
+        const res = await fetch('/api/patients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          alert(err.detail || 'Failed to register patient');
+          return;
+        }
+        closeRegisterModal();
+        await loadPatients();
+      } catch (err) {
+        alert('Error saving patient: ' + err.message);
+      }
+    }
+
+    // --- Live Monitoring ---
+    async function openMonitor(patientId) {
+      activePatientId = patientId;
+      const patient = patients.find(p => p.id === patientId);
+      if (!patient) return;
+
+      document.getElementById('monitorPatientName').textContent = patient.name;
+      document.getElementById('monitorPatientRoom').textContent = patient.room_number;
+      document.getElementById('monitorClientId').textContent = 'Client: ' + patient.client_id;
+      document.getElementById('cameraCodeHint').textContent = patient.client_id;
+      document.getElementById('monitorSection').style.display = 'block';
+      document.getElementById('monitorSection').scrollIntoView({ behavior: 'smooth' });
+
+      // Connect WebSocket for this patient
+      connectMonitorWs(patientId);
+      loadCurrentPatientLogs();
+    }
+
+    function closeMonitor() {
+      if (monitorWs) {
+        monitorWs.close();
+        monitorWs = null;
+      }
+      document.getElementById('monitorSection').style.display = 'none';
+      activePatientId = null;
+    }
+
+    function connectMonitorWs(patientId) {
+      if (monitorWs) {
+        monitorWs.close();
+      }
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      monitorWs = new WebSocket(`${proto}//${location.host}/ws/dashboard/${patientId}`);
+      monitorWs.binaryType = 'blob';
+
+      const img = document.getElementById('monitorFeed');
+      const overlay = document.getElementById('noStreamOverlay');
+
+      monitorWs.onopen = () => {
+        monitorWs.send('ready');
+      };
+
+      img.onload = () => {
+        frameCount++;
+        const now = performance.now();
+        if (now - lastFpsUpdate >= 1000) {
+          document.getElementById('monitorFps').textContent = `FPS: ${((frameCount * 1000) / (now - lastFpsUpdate)).toFixed(1)}`;
+          frameCount = 0;
+          lastFpsUpdate = now;
+        }
+        if (img.dataset.prevUrl) {
+          URL.revokeObjectURL(img.dataset.prevUrl);
+          delete img.dataset.prevUrl;
+        }
+        // Pull next frame
+        if (monitorWs && monitorWs.readyState === WebSocket.OPEN) {
+          monitorWs.send('ready');
+        }
+      };
+
+      monitorWs.onmessage = (event) => {
+        if (typeof event.data === 'string') {
+          if (event.data === 'wait') {
+            setTimeout(() => {
+              if (monitorWs && monitorWs.readyState === WebSocket.OPEN) {
+                monitorWs.send('ready');
+              }
+            }, 300);
+          }
+          return;
+        }
+
+        // Image blob frame received
+        overlay.style.display = 'none';
+        const nextUrl = URL.createObjectURL(event.data);
+        if (currentObjectUrl) {
+          img.dataset.prevUrl = currentObjectUrl;
+        }
+        currentObjectUrl = nextUrl;
+        img.src = nextUrl;
+      };
+
+      monitorWs.onclose = () => {
+        overlay.style.display = 'block';
+      };
+
+      // Periodic heartbeat to ensure stream stays responsive if a packet is dropped
+      if (!window._monitorHeartbeat) {
+        window._monitorHeartbeat = setInterval(() => {
+          if (monitorWs && monitorWs.readyState === WebSocket.OPEN && performance.now() - lastFpsUpdate > 2500) {
+            monitorWs.send('ready');
+          }
+        }, 2000);
+      }
+    }
+
+    function handleTelemetry(t) {
+      const banner = document.getElementById('activeAlertBanner');
+      const resetBtn = document.getElementById('resetAlertBtn');
+      const overlay = document.getElementById('noStreamOverlay');
+
+      if (!t.is_streaming) {
+        overlay.style.display = 'block';
+      }
+
+      if (t.fall_alert) {
+        banner.style.display = 'flex';
+        banner.className = 'alert-banner fall';
+        document.getElementById('alertBannerText').textContent = '🚨 EMERGENCY: CONFIRMED FALL DETECTED - SUBJECT UNRESPONSIVE';
+        resetBtn.style.display = 'inline-flex';
+        triggerAlertAudio(true, false);
+      } else if (t.prolonged_alert) {
+        banner.style.display = 'flex';
+        banner.className = 'alert-banner prolonged';
+        document.getElementById('alertBannerText').textContent = `⚠️ PROLONGED POSTURE WARNING: Subject in ${t.posture} for >= ${t.posture_duration}s`;
+        resetBtn.style.display = 'inline-flex';
+        triggerAlertAudio(false, true);
+      } else {
+        banner.style.display = 'none';
+        resetBtn.style.display = 'none';
+      }
+    }
+
+    async function loadCurrentPatientLogs() {
+      if (!activePatientId) return;
+      try {
+        const res = await fetch(`/api/patients/${activePatientId}/logs`);
+        const logs = await res.json();
+        const tbody = document.getElementById('logsTableBody');
+        if (!logs.length) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#64748b;">No posture episodes >= 5s or alerts logged yet.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = logs.map(l => {
+          let badgeClass = 'badge-live';
+          if (l.event_type === 'FALL_ALERT') badgeClass = 'badge-fall';
+          else if (l.event_type === 'PROLONGED_POSTURE') badgeClass = 'badge-prolonged';
+          else if (l.event_type === 'NORMAL_POSTURE') badgeClass = 'badge-live';
+          else badgeClass = 'badge-offline';
+
+          return `
+            <tr>
+              <td style="white-space:nowrap; color:#94a3b8;">${escapeHtml(l.timestamp)}</td>
+              <td><span class="badge ${badgeClass}">${escapeHtml(l.event_type)}</span></td>
+              <td><strong>${escapeHtml(l.posture)}</strong></td>
+              <td>${l.duration_seconds}s</td>
+              <td style="color:#cbd5e1;">${escapeHtml(l.details || '')}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('Error loading logs:', err);
+      }
+    }
+
+    async function resetActiveAlert() {
+      if (!activePatientId) return;
+      try {
+        await fetch(`/api/patients/${activePatientId}/reset_alert`, { method: 'POST' });
+        document.getElementById('activeAlertBanner').style.display = 'none';
+        document.getElementById('resetAlertBtn').style.display = 'none';
+        await loadPatients();
+        loadCurrentPatientLogs();
+      } catch(e) {}
+    }
+
+    function copyCameraLink() {
+      const patient = patients.find(p => p.id === activePatientId);
+      if (!patient) return;
+      const url = `${location.protocol}//${location.host}/capture?client_id=${encodeURIComponent(patient.client_id)}`;
+      navigator.clipboard.writeText(url).then(() => {
+        alert('Camera URL copied to clipboard!\nOpen this URL on the phone:\n' + url);
+      });
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Refresh patient list and logs periodically
     setInterval(() => {
-      if (ws && ws.readyState === WebSocket.OPEN && performance.now() - lastFrameTime > 2000) {
-        requestNextFrame();
+      loadPatients();
+      if (activePatientId) {
+        loadCurrentPatientLogs();
       }
-    }, 1500);
+    }, 3000);
 
-    ws.onclose = () => {
-      statusEl.textContent = 'Dashboard disconnected. Reload page to reconnect.';
-      statusEl.style.borderLeftColor = '#dc2626';
-    };
-
-    ws.onerror = () => {
-      statusEl.textContent = 'Dashboard connection error.';
-      statusEl.style.borderLeftColor = '#dc2626';
-    };
+    // Initial load
+    loadPatients();
   </script>
 </body>
 </html>
