@@ -1,90 +1,124 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Live Posture & Fall Detection</title>
-  <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      margin: 0;
-      background: #0b1220;
-      color: #f9fafb;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 20px;
-      box-sizing: border-box;
+  <title>KineticGuard — Clinical Posture & Fall Telemetry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
     }
-    .card {
-      background: #172033;
-      border-radius: 16px;
-      padding: 32px;
-      max-width: 480px;
-      width: 100%;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.4);
-      text-align: center;
-    }
-    h1 {
-      margin-top: 0;
-      font-size: 1.6rem;
-      color: #ffffff;
-    }
-    p {
-      color: #94a3b8;
-      font-size: 0.95rem;
-      line-height: 1.5;
-    }
-    .btn-group {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-top: 24px;
-    }
-    .btn {
-      display: block;
-      padding: 14px 20px;
-      border-radius: 10px;
-      text-decoration: none;
-      font-weight: 600;
-      font-size: 1rem;
-      transition: all 0.2s ease;
-    }
-    .btn-capture {
-      background: #16a34a;
-      color: #ffffff;
-    }
-    .btn-capture:hover {
-      background: #15803d;
-    }
-    .btn-dashboard {
-      background: #2563eb;
-      color: #ffffff;
-    }
-    .btn-dashboard:hover {
-      background: #1d4ed8;
-    }
-    .info {
-      margin-top: 24px;
-      font-size: 0.85rem;
-      color: #64748b;
-      border-top: 1px solid #28354f;
-      padding-top: 16px;
-    }
-  </style>
+  </script>
 </head>
-<body>
-  <div class="card">
-    <h1>Live Posture Monitor</h1>
-    <p>Real-time pose estimation and posture stability tracking powered by YOLO11.</p>
-    <div class="btn-group">
-      <a href="/capture" class="btn btn-capture">📱 Open Camera (/capture)</a>
-      <a href="/dashboard" class="btn btn-dashboard">🖥️ Open Dashboard (/dashboard)</a>
+<body class="bg-[#0c0e14] text-[#f1f3f7] min-h-screen flex flex-col font-sans antialiased selection:bg-blue-600 selection:text-white">
+
+  <!-- Header -->
+  <header class="border-b border-white/[0.08] bg-[#0c0e14]/90 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-md bg-[#181d2c] border border-white/[0.08] flex items-center justify-center text-blue-400">
+          <i data-lucide="activity" class="w-4 h-4"></i>
+        </div>
+        <span class="font-semibold text-sm tracking-tight text-[#f1f3f7]">KineticGuard</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="/capture" class="h-8 px-2.5 rounded-md bg-[#181d2c] border border-white/[0.08] hover:bg-[#20263a] text-xs text-[#9ba3b5] hover:text-[#f1f3f7] transition-colors flex items-center gap-1.5">
+          <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+          <span>Camera node</span>
+        </a>
+        <a href="/dashboard" class="h-8 px-3 rounded-md bg-[#f1f3f7] text-[#0c0e14] hover:bg-white text-xs font-medium transition-colors">
+          Open station
+        </a>
+      </div>
     </div>
-    <div class="info">
-      Open <strong>/capture</strong> on your phone camera, and view the annotated stream on <strong>/dashboard</strong>.
+  </header>
+
+  <!-- Hero Section -->
+  <main class="flex-1 max-w-4xl mx-auto px-4 py-20 flex flex-col items-center justify-center text-center space-y-8">
+    
+    <!-- Status Pill -->
+    <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-[#181d2c] border border-white/[0.08] text-xs text-[#9ba3b5]">
+      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+      <span>YOLO11 pose estimation &bull; Multi-phase fall FSM</span>
     </div>
-  </div>
+
+    <!-- Calm Headline -->
+    <div class="space-y-3 max-w-2xl">
+      <h1 class="text-3xl sm:text-5xl font-semibold tracking-tight text-[#f1f3f7] leading-tight">
+        Clinical posture and fall telemetry
+      </h1>
+      <p class="text-[#9ba3b5] text-sm sm:text-base leading-relaxed">
+        Real-time human pose estimation, multi-phase sudden fall detection, and prolonged immobility monitoring with zero-lag WebSocket streaming and SQLite event logging.
+      </p>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex items-center justify-center gap-3 pt-2">
+      <a href="/dashboard" class="h-10 px-4 rounded-md bg-[#f1f3f7] text-[#0c0e14] hover:bg-white text-xs font-medium flex items-center gap-2 transition-colors">
+        <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+        <span>Open telemetry station</span>
+      </a>
+      <a href="/capture" class="h-10 px-4 rounded-md bg-[#181d2c] hover:bg-[#20263a] border border-white/[0.08] text-xs font-medium text-[#f1f3f7] flex items-center gap-2 transition-colors">
+        <i data-lucide="camera" class="w-4 h-4 text-[#9ba3b5]"></i>
+        <span>Connect camera</span>
+      </a>
+    </div>
+
+    <!-- Product Features Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 w-full pt-12 text-left">
+      <div class="rounded-xl bg-[#121520] border border-white/[0.08] p-5 space-y-2">
+        <div class="w-7 h-7 rounded-md bg-[#181d2c] border border-white/[0.08] flex items-center justify-center text-[#9ba3b5]">
+          <i data-lucide="shield-alert" class="w-3.5 h-3.5"></i>
+        </div>
+        <h3 class="text-xs font-semibold text-[#f1f3f7]">3-phase fall state machine</h3>
+        <p class="text-xs text-[#6e768b] leading-relaxed">
+          Dynamic descent velocity triggers combined with floor immobility confirmation to eliminate false positives.
+        </p>
+      </div>
+
+      <div class="rounded-xl bg-[#121520] border border-white/[0.08] p-5 space-y-2">
+        <div class="w-7 h-7 rounded-md bg-[#181d2c] border border-white/[0.08] flex items-center justify-center text-[#9ba3b5]">
+          <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+        </div>
+        <h3 class="text-xs font-semibold text-[#f1f3f7]">Sustained posture logging</h3>
+        <p class="text-xs text-[#6e768b] leading-relaxed">
+          Timestamped SQLite logging for postures maintained for at least 5 seconds and prolonged immobility alerts.
+        </p>
+      </div>
+
+      <div class="rounded-xl bg-[#121520] border border-white/[0.08] p-5 space-y-2">
+        <div class="w-7 h-7 rounded-md bg-[#181d2c] border border-white/[0.08] flex items-center justify-center text-[#9ba3b5]">
+          <i data-lucide="zap" class="w-3.5 h-3.5"></i>
+        </div>
+        <h3 class="text-xs font-semibold text-[#f1f3f7]">Zero-buffer flow control</h3>
+        <p class="text-xs text-[#6e768b] leading-relaxed">
+          ACK-gated WebSocket transmission prevents buffer accumulation, maintaining sub-60ms network latency.
+        </p>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-white/[0.08] bg-[#0c0e14] py-4 text-center text-xs text-[#6e768b]">
+    KineticGuard &bull; Fast, local clinical prototype
+  </footer>
+
+  <script>
+    lucide.createIcons();
+  </script>
 </body>
 </html>

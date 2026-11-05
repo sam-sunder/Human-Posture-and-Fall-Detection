@@ -56,42 +56,6 @@ def init_db() -> None:
         "CREATE INDEX IF NOT EXISTS idx_posture_logs_timestamp ON posture_logs(timestamp)"
     )
 
-    # Seed an initial default patient if table is empty
-    cursor.execute("SELECT COUNT(*) FROM patients")
-    count = cursor.fetchone()[0]
-    if count == 0:
-        now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
-        cursor.execute(
-            """
-            INSERT INTO patients (name, age, gender, room_number, client_id, notes, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                "Eleanor Vance",
-                78,
-                "Female",
-                "Room 102-A",
-                "client-102",
-                "High fall risk. Post-hip surgery recovery.",
-                now_str,
-            ),
-        )
-        cursor.execute(
-            """
-            INSERT INTO patients (name, age, gender, room_number, client_id, notes, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                "Robert Miller",
-                82,
-                "Male",
-                "Room 105-B",
-                "client-105",
-                "Sedentary monitoring. Requires regular posture shifts.",
-                now_str,
-            ),
-        )
-
     conn.commit()
     conn.close()
 

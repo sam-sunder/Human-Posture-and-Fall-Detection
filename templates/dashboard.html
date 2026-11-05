@@ -3,408 +3,392 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Clinical Posture & Fall Detection Portal</title>
+  <title>KineticGuard — Patient Posture & Fall Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    // Theme initialization (Light is primary default)
+    (function() {
+      const theme = localStorage.getItem('theme') || 'light';
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    })();
+
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
   <style>
-    :root {
-      --bg: #0b1220;
-      --card-bg: #151f32;
-      --card-border: #223049;
-      --accent: #2563eb;
-      --accent-hover: #1d4ed8;
-      --text: #f9fafb;
-      --text-muted: #94a3b8;
-      --danger: #ef4444;
-      --warning: #f59e0b;
-      --success: #10b981;
-    }
-    * { box-sizing: border-box; }
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      margin: 0;
-      background: var(--bg);
-      color: var(--text);
-      padding: 20px;
-    }
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-bottom: 16px;
-      border-bottom: 1px solid var(--card-border);
-      margin-bottom: 24px;
-      flex-wrap: wrap;
-      gap: 16px;
-    }
-    h1 {
-      margin: 0;
-      font-size: 1.6rem;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .header-actions {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-    button, .btn {
-      padding: 10px 18px;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      border: 0;
-      transition: all 0.15s ease;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .btn-primary { background: var(--accent); color: white; }
-    .btn-primary:hover { background: var(--accent-hover); }
-    .btn-success { background: var(--success); color: white; }
-    .btn-danger { background: var(--danger); color: white; }
-    .btn-secondary { background: #26354f; color: var(--text); border: 1px solid var(--card-border); }
-    .btn-secondary:hover { background: #324363; }
-    .badge {
-      display: inline-block;
-      padding: 4px 10px;
-      border-radius: 9999px;
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-    .badge-live { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid #059669; }
-    .badge-offline { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border: 1px solid #475569; }
-    .badge-fall { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid #dc2626; animation: pulse 1.2s infinite; }
-    .badge-prolonged { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #d97706; }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-    .stat-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 16px;
-    }
-    .stat-val { font-size: 1.8rem; font-weight: 700; margin-top: 4px; }
-    .stat-lbl { font-size: 0.85rem; color: var(--text-muted); }
-    .patients-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 20px;
-      margin-bottom: 30px;
-    }
-    .patient-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 14px;
-      padding: 20px;
-      transition: transform 0.15s ease, border-color 0.15s ease;
-      position: relative;
-    }
-    .patient-card:hover {
-      border-color: #3b82f6;
-      transform: translateY(-2px);
-    }
-    .patient-card.has-alert {
-      border-color: var(--danger);
-      box-shadow: 0 0 15px rgba(239, 68, 68, 0.25);
-    }
-    .patient-card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 12px;
-    }
-    .patient-name { font-size: 1.15rem; font-weight: 700; margin: 0; }
-    .patient-room { font-size: 0.85rem; color: #60a5fa; font-weight: 600; margin-top: 2px; }
-    .patient-meta {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      margin: 10px 0 16px 0;
-      line-height: 1.5;
-    }
-    .patient-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-top: 14px;
-      border-top: 1px solid var(--card-border);
-    }
-    /* Monitoring View Section */
-    #monitorSection {
-      display: none;
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 24px;
-      margin-bottom: 30px;
-    }
-    .monitor-layout {
-      display: grid;
-      grid-template-columns: 3fr 2fr;
-      gap: 24px;
-    }
-    @media (max-width: 900px) {
-      .monitor-layout { grid-template-columns: 1fr; }
-    }
-    .video-viewport {
-      background: #000;
-      border-radius: 12px;
-      overflow: hidden;
-      min-height: 320px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      border: 1px solid #1e293b;
-    }
-    .video-stream {
-      width: 100%;
-      height: auto;
-      max-height: 520px;
-      object-fit: contain;
-      display: block;
-    }
-    .alert-banner {
-      display: none;
-      padding: 14px 18px;
-      border-radius: 10px;
-      margin-bottom: 16px;
-      font-weight: 600;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-    }
-    .alert-banner.fall {
-      background: rgba(239, 68, 68, 0.2);
-      border: 1px solid var(--danger);
-      color: #fca5a5;
-    }
-    .alert-banner.prolonged {
-      background: rgba(245, 158, 11, 0.2);
-      border: 1px solid var(--warning);
-      color: #fcd34d;
-    }
-    .logs-table-container {
-      background: #0d1526;
-      border-radius: 10px;
-      border: 1px solid var(--card-border);
-      max-height: 380px;
-      overflow-y: auto;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-    th, td {
-      padding: 10px 12px;
-      text-align: left;
-      border-bottom: 1px solid #1a253b;
-    }
-    th {
-      background: #131c30;
-      color: var(--text-muted);
-      position: sticky;
-      top: 0;
-    }
-    tr:hover { background: rgba(255,255,255,0.02); }
-    /* Modal */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.75);
-      backdrop-filter: blur(4px);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
-    .modal {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 28px;
-      max-width: 500px;
-      width: 100%;
-    }
-    .form-group { margin-bottom: 16px; }
-    label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
-    input, select, textarea {
-      width: 100%;
-      padding: 10px 14px;
-      background: #0d1526;
-      border: 1px solid var(--card-border);
-      border-radius: 8px;
-      color: var(--text);
-      font-size: 14px;
-    }
-    input:focus, select:focus, textarea:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
+    /* Custom calm scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    .dark ::-webkit-scrollbar-thumb { background: #262c3e; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    .dark ::-webkit-scrollbar-thumb:hover { background: #373f58; }
   </style>
 </head>
-<body>
+<body class="bg-slate-50 dark:bg-[#0c0e14] text-slate-900 dark:text-[#f1f3f7] min-h-screen flex flex-col font-sans antialiased selection:bg-blue-600 selection:text-white transition-colors duration-150">
 
-  <header>
-    <h1>🏥 Clinical Posture & Fall Detection Portal</h1>
-    <div class="header-actions">
-      <button class="btn btn-secondary" id="soundToggleBtn" onclick="toggleSound()">🔊 Audio Alerts: ON</button>
-      <button class="btn btn-secondary" onclick="testAudioAlert('fall')">🔔 Test Fall Siren</button>
-      <button class="btn btn-secondary" onclick="testAudioAlert('prolonged')">🎵 Test Chime</button>
-      <button class="btn btn-primary" onclick="openRegisterModal()">+ Register Patient</button>
-      <a href="/capture" target="_blank" class="btn btn-secondary">📱 Open Camera App</a>
+  <!-- Navigation Bar -->
+  <header class="border-b border-slate-200 dark:border-white/[0.08] bg-white/90 dark:bg-[#0c0e14]/90 backdrop-blur-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
+      
+      <!-- Brand & Telemetry Status -->
+      <div class="flex items-center gap-3">
+        <div class="w-7 h-7 rounded-md bg-slate-100 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] flex items-center justify-center text-blue-600 dark:text-blue-400">
+          <i data-lucide="activity" class="w-4 h-4"></i>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="font-semibold text-sm tracking-tight text-slate-900 dark:text-[#f1f3f7]">KineticGuard</span>
+          <span class="text-slate-400 dark:text-[#6e768b] text-xs">/</span>
+          <span class="text-xs text-slate-500 dark:text-[#9ba3b5]">Telemetry Station</span>
+        </div>
+      </div>
+
+      <!-- Station Actions -->
+      <div class="flex items-center gap-2">
+        <!-- Theme Switcher -->
+        <button id="themeToggleBtn" onclick="toggleTheme()" class="h-8 px-2.5 rounded-md bg-slate-100 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] hover:bg-slate-200 dark:hover:bg-[#20263a] text-xs text-slate-700 dark:text-[#9ba3b5] hover:text-slate-900 dark:hover:text-[#f1f3f7] flex items-center gap-1.5 transition-colors" title="Toggle color theme">
+          <i data-lucide="moon" id="themeIcon" class="w-3.5 h-3.5 text-slate-600 dark:text-amber-400"></i>
+          <span id="themeText">Theme</span>
+        </button>
+
+        <!-- Audio Alert Controller -->
+        <button id="soundToggleBtn" onclick="toggleSound()" class="h-8 px-2.5 rounded-md bg-slate-100 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] hover:bg-slate-200 dark:hover:bg-[#20263a] text-xs text-slate-700 dark:text-[#9ba3b5] hover:text-slate-900 dark:hover:text-[#f1f3f7] flex items-center gap-1.5 transition-colors">
+          <i data-lucide="volume-2" id="soundIcon" class="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400"></i>
+          <span id="soundText">Audio on</span>
+        </button>
+
+        <!-- Audio Alert Previews -->
+        <div class="hidden md:flex items-center gap-1">
+          <button onclick="testAudioAlert('fall')" class="h-8 px-2 rounded-md bg-slate-100 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] hover:bg-slate-200 dark:hover:bg-[#20263a] text-xs text-slate-600 dark:text-[#9ba3b5] hover:text-red-600 dark:hover:text-red-400 flex items-center gap-1 transition-colors">
+            <i data-lucide="siren" class="w-3.5 h-3.5 text-red-500 dark:text-red-400"></i>
+            <span>Test siren</span>
+          </button>
+          <button onclick="testAudioAlert('prolonged')" class="h-8 px-2 rounded-md bg-slate-100 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] hover:bg-slate-200 dark:hover:bg-[#20263a] text-xs text-slate-600 dark:text-[#9ba3b5] hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-1 transition-colors">
+            <i data-lucide="bell" class="w-3.5 h-3.5 text-amber-500 dark:text-amber-400"></i>
+            <span>Test chime</span>
+          </button>
+        </div>
+
+        <!-- Camera Node Link -->
+        <a href="/capture" target="_blank" class="h-8 px-2.5 rounded-md bg-slate-100 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] hover:bg-slate-200 dark:hover:bg-[#20263a] text-xs text-slate-700 dark:text-[#9ba3b5] hover:text-slate-900 dark:hover:text-[#f1f3f7] flex items-center gap-1.5 transition-colors">
+          <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Camera node</span>
+        </a>
+
+        <!-- Register Patient Modal Action -->
+        <button onclick="openRegisterModal()" class="h-8 px-3 rounded-md bg-slate-900 text-white hover:bg-slate-800 dark:bg-[#f1f3f7] dark:text-[#0c0e14] dark:hover:bg-white text-xs font-medium flex items-center gap-1.5 transition-colors">
+          <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+          <span>Register patient</span>
+        </button>
+      </div>
+
     </div>
   </header>
 
-  <!-- High-level Summary Metrics -->
-  <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-lbl">Registered Patients</div>
-      <div class="stat-val" id="statTotalPatients">--</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-lbl">Active Live Streams</div>
-      <div class="stat-val" style="color: #34d399;" id="statActiveStreams">--</div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-lbl">Active Alerts (Falls / Immobility)</div>
-      <div class="stat-val" style="color: #f87171;" id="statActiveAlerts">0</div>
-    </div>
-  </div>
+  <!-- Main Content Shell -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-  <!-- Dedicated Live Patient Monitoring View -->
-  <section id="monitorSection">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px;">
-      <div>
-        <h2 style="margin:0;" id="monitorPatientName">Patient Monitoring</h2>
-        <span style="font-size:0.85rem; color:#60a5fa;" id="monitorPatientRoom">Room --</span> &bull; 
-        <span style="font-size:0.85rem; color:var(--text-muted);" id="monitorClientId">Client: --</span>
+    <!-- Clinical Census Cards -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      
+      <!-- Registered Patients -->
+      <div class="rounded-xl bg-white dark:bg-[#121520] border border-slate-200 dark:border-white/[0.08] p-4 shadow-sm dark:shadow-none">
+        <div class="text-xs text-slate-500 dark:text-[#6e768b]">Registered patients</div>
+        <div class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-[#f1f3f7] font-mono mt-1" id="statTotalPatients">0</div>
+        <div class="text-[11px] text-slate-500 dark:text-[#6e768b] mt-2 flex items-center gap-1">
+          <i data-lucide="database" class="w-3 h-3 text-slate-400 dark:text-[#6e768b]"></i>
+          <span>SQLite database</span>
+        </div>
       </div>
-      <div style="display:flex; gap:10px;">
-        <button class="btn btn-danger" id="resetAlertBtn" onclick="resetActiveAlert()" style="display:none;">Reset Active Alert</button>
-        <button class="btn btn-secondary" onclick="closeMonitor()">✕ Close Monitor</button>
+
+      <!-- Active Streams -->
+      <div class="rounded-xl bg-white dark:bg-[#121520] border border-slate-200 dark:border-white/[0.08] p-4 shadow-sm dark:shadow-none">
+        <div class="text-xs text-slate-500 dark:text-[#6e768b]">Cameras online</div>
+        <div class="text-2xl font-semibold tracking-tight text-emerald-600 dark:text-emerald-400 font-mono mt-1" id="statActiveStreams">0</div>
+        <div class="text-[11px] text-slate-500 dark:text-[#6e768b] mt-2 flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <span>Flow-controlled streaming</span>
+        </div>
       </div>
-    </div>
 
-    <!-- Real-time Alert Banner -->
-    <div id="activeAlertBanner" class="alert-banner" style="display:none;">
-      <span id="alertBannerText">⚠️ ALERT DETECTED</span>
-      <button class="btn btn-secondary" onclick="resetActiveAlert()">Acknowledge & Dismiss</button>
-    </div>
+      <!-- Active Alerts -->
+      <div class="rounded-xl bg-white dark:bg-[#121520] border border-slate-200 dark:border-white/[0.08] p-4 shadow-sm dark:shadow-none" id="alertCardContainer">
+        <div class="text-xs text-slate-500 dark:text-[#6e768b]">Active alerts</div>
+        <div class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-[#f1f3f7] font-mono mt-1" id="statActiveAlerts">0</div>
+        <div class="text-[11px] text-slate-500 dark:text-[#6e768b] mt-2 flex items-center gap-1" id="alertStatusSub">
+          <i data-lucide="check" class="w-3 h-3 text-emerald-600 dark:text-emerald-400"></i>
+          <span>No unaddressed incidents</span>
+        </div>
+      </div>
 
-    <div class="monitor-layout">
-      <!-- Video Live Stream Container -->
-      <div>
-        <div class="video-viewport">
-          <img class="video-stream" id="monitorFeed" alt="Live Annotated Patient Stream">
-          <div id="noStreamOverlay" style="position:absolute; text-align:center; padding:20px; color:#94a3b8;">
-            <p style="font-size:1.1rem; margin-bottom:8px;">Camera stream offline for this patient.</p>
-            <p style="font-size:0.85rem;">Open camera stream with client ID: <code style="color:#60a5fa;" id="cameraCodeHint">--</code></p>
-            <button class="btn btn-secondary" onclick="copyCameraLink()">📋 Copy Camera Link for Phone</button>
+      <!-- Pose Telemetry Status -->
+      <div class="rounded-xl bg-white dark:bg-[#121520] border border-slate-200 dark:border-white/[0.08] p-4 shadow-sm dark:shadow-none">
+        <div class="text-xs text-slate-500 dark:text-[#6e768b]">Model inference</div>
+        <div class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-[#f1f3f7] font-mono mt-1">YOLO11-Pose</div>
+        <div class="text-[11px] text-slate-500 dark:text-[#6e768b] mt-2 flex items-center gap-1">
+          <i data-lucide="cpu" class="w-3 h-3 text-slate-400 dark:text-[#6e768b]"></i>
+          <span>384px resolution &bull; CPU inference</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Active Patient Monitoring View (Quiet & Focused) -->
+    <section id="monitorSection" class="hidden">
+      <div class="rounded-xl bg-white dark:bg-[#121520] border border-slate-200 dark:border-white/[0.08] p-5 space-y-4 shadow-sm dark:shadow-none">
+        
+        <!-- Console Bar -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-white/[0.08]">
+          <div class="flex items-center gap-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-sm font-semibold text-slate-900 dark:text-[#f1f3f7]" id="monitorPatientName">Patient monitor</h2>
+                <span class="px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 dark:bg-[#181d2c] dark:text-blue-400 dark:border-white/[0.06]" id="monitorPatientRoom">Room --</span>
+              </div>
+              <div class="text-xs text-slate-500 dark:text-[#6e768b] mt-0.5">
+                Client: <code class="font-mono text-slate-700 dark:text-[#9ba3b5]" id="monitorClientId">--</code>
+                <span class="mx-1">&bull;</span>
+                <span id="monitorPatientMeta">--</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button id="resetAlertBtn" onclick="resetActiveAlert()" class="hidden h-7 px-2.5 rounded bg-red-600 hover:bg-red-500 text-white text-xs font-medium transition-colors items-center gap-1">
+              <i data-lucide="check" class="w-3 h-3"></i>
+              <span>Dismiss alert</span>
+            </button>
+            <button onclick="closeMonitor()" class="h-7 px-2.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-[#181d2c] dark:hover:bg-[#20263a] text-xs text-slate-600 dark:text-[#9ba3b5] hover:text-slate-900 dark:hover:text-[#f1f3f7] transition-colors flex items-center gap-1">
+              <i data-lucide="x" class="w-3 h-3"></i>
+              <span>Close monitor</span>
+            </button>
           </div>
         </div>
-        <div style="display:flex; justify-content:space-between; margin-top:10px; font-size:13px; color:var(--text-muted);">
-          <span id="monitorFps">FPS: --</span>
-          <span id="monitorLatency">Zero-Buffer Protocol: Active</span>
-        </div>
-      </div>
 
-      <!-- Patient Bio & SQLite Posture Event Logs Table -->
-      <div>
-        <h3 style="margin-top:0; margin-bottom:12px; font-size:1.1rem; display:flex; justify-content:space-between; align-items:center;">
-          <span>Posture & Fall Event History</span>
-          <button class="btn btn-secondary" style="padding:4px 10px; font-size:12px;" onclick="loadCurrentPatientLogs()">↻ Refresh</button>
-        </h3>
-        <p style="font-size:12px; color:var(--text-muted); margin-bottom:10px;">
-          Logs posture episodes maintained &ge; 5s, prolonged sedentary states, and sudden fall events in SQLite.
-        </p>
-        <div class="logs-table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Time (UTC)</th>
-                <th>Event</th>
-                <th>Posture</th>
-                <th>Duration</th>
-                <th>Clinical Details</th>
-              </tr>
-            </thead>
-            <tbody id="logsTableBody">
-              <tr><td colspan="5" style="text-align:center; color:#64748b;">Loading event logs…</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Patient Directory Section -->
-  <h2 style="margin-bottom:16px; font-size:1.3rem;">Registered Patients</h2>
-  <div class="patients-grid" id="patientsGrid">
-    <div style="color:var(--text-muted);">Loading patients…</div>
-  </div>
-
-  <!-- Register Patient Modal -->
-  <div class="modal-overlay" id="registerModal">
-    <div class="modal">
-      <h2 style="margin-top:0; font-size:1.3rem;">Register New Patient</h2>
-      <form id="registerForm" onsubmit="handleRegisterSubmit(event)">
-        <div class="form-group">
-          <label for="pName">Full Name</label>
-          <input type="text" id="pName" required placeholder="e.g. Margaret Jenkins">
-        </div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-          <div class="form-group">
-            <label for="pAge">Age</label>
-            <input type="number" id="pAge" required value="75">
+        <!-- Emergency Banner (Only shown during active incident) -->
+        <div id="activeAlertBanner" class="hidden p-3 rounded-lg border border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-300 text-xs flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <i data-lucide="alert-triangle" class="w-4 h-4 text-red-600 dark:text-red-400 shrink-0"></i>
+            <div>
+              <span class="font-semibold" id="alertBannerTitle">Fall confirmed</span>
+              <span class="mx-1">&bull;</span>
+              <span id="alertBannerText">Subject is down and inactive. Check bedside immediately.</span>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="pGender">Gender</label>
-            <select id="pGender" required>
+          <button onclick="resetActiveAlert()" class="px-2 py-1 rounded bg-red-100 hover:bg-red-200 dark:bg-red-900/40 dark:hover:bg-red-900/60 text-red-900 dark:text-white text-[11px] font-medium shrink-0 transition-colors">
+            Acknowledge
+          </button>
+        </div>
+
+        <!-- Monitoring Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          
+          <!-- Live Feed Viewport -->
+          <div class="lg:col-span-7 space-y-2">
+            <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-slate-200 dark:border-white/[0.08] flex items-center justify-center">
+              <img id="monitorFeed" class="w-full h-full object-contain block" alt="Patient optical stream">
+              
+              <!-- Offline notice -->
+              <div id="noStreamOverlay" class="absolute inset-0 bg-slate-900/90 dark:bg-[#0c0e14]/90 flex flex-col items-center justify-center p-6 text-center">
+                <i data-lucide="camera-off" class="w-5 h-5 text-slate-400 dark:text-[#6e768b] mb-2"></i>
+                <div class="text-xs font-medium text-white dark:text-[#f1f3f7] mb-0.5">Camera offline</div>
+                <div class="text-[11px] text-slate-400 dark:text-[#6e768b] max-w-xs mb-3">
+                  Open camera node on phone and select ID <code class="text-blue-400 font-mono" id="cameraCodeHint">--</code>
+                </div>
+                <button onclick="copyCameraLink()" class="h-7 px-2.5 rounded bg-slate-800 hover:bg-slate-700 text-xs text-slate-200 border border-white/[0.08] flex items-center gap-1.5 transition-colors">
+                  <i data-lucide="copy" class="w-3 h-3"></i>
+                  <span>Copy camera link</span>
+                </button>
+              </div>
+
+              <!-- Quiet HUD metadata pill -->
+              <div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none text-[11px] font-mono">
+                <div class="px-2 py-0.5 rounded bg-black/60 text-emerald-400 border border-white/[0.06] backdrop-blur-sm">
+                  <span id="monitorFps">FPS: --</span>
+                </div>
+                <div class="px-2 py-0.5 rounded bg-black/60 text-[#9ba3b5] border border-white/[0.06] backdrop-blur-sm">
+                  Flow sync active
+                </div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between text-[11px] text-slate-500 dark:text-[#6e768b]">
+              <span>Direct optical stream &bull; Sustained postures (&ge; 5s) logged to database</span>
+              <button onclick="copyCameraLink()" class="text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                <span>Share link</span>
+                <i data-lucide="external-link" class="w-3 h-3"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Chronological History Table -->
+          <div class="lg:col-span-5 flex flex-col space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-900 dark:text-[#f1f3f7]">Posture & event log</span>
+              <button onclick="loadCurrentPatientLogs()" class="text-[11px] text-slate-500 dark:text-[#6e768b] hover:text-slate-900 dark:hover:text-[#f1f3f7] flex items-center gap-1 transition-colors">
+                <i data-lucide="refresh-cw" class="w-3 h-3"></i>
+                <span>Refresh</span>
+              </button>
+            </div>
+
+            <div class="rounded-lg border border-slate-200 dark:border-white/[0.08] bg-slate-50 dark:bg-[#0c0e14] overflow-hidden flex-1 max-h-[340px] flex flex-col">
+              <div class="overflow-y-auto flex-1">
+                <table class="w-full text-left text-xs border-collapse">
+                  <thead class="sticky top-0 bg-slate-100 dark:bg-[#121520] border-b border-slate-200 dark:border-white/[0.08] text-[11px] text-slate-500 dark:text-[#6e768b]">
+                    <tr>
+                      <th class="py-2 px-3 font-medium">Time (UTC)</th>
+                      <th class="py-2 px-3 font-medium">Event</th>
+                      <th class="py-2 px-3 font-medium">Posture</th>
+                      <th class="py-2 px-3 font-medium text-right">Duration</th>
+                    </tr>
+                  </thead>
+                  <tbody id="logsTableBody" class="divide-y divide-slate-200 dark:divide-white/[0.04] font-mono text-[11px]">
+                    <tr>
+                      <td colspan="4" class="py-6 text-center text-slate-400 dark:text-[#6e768b] font-sans text-xs">
+                        No posture history recorded for this patient yet
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Patient Directory -->
+    <section class="space-y-3">
+      
+      <!-- Filter Bar -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-semibold text-slate-900 dark:text-[#f1f3f7]">Patient directory</h2>
+          <p class="text-xs text-slate-500 dark:text-[#6e768b]">Registered patients and camera associations</p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <div class="relative w-full sm:w-56">
+            <i data-lucide="search" class="w-3.5 h-3.5 text-slate-400 dark:text-[#6e768b] absolute left-2.5 top-1/2 -translate-y-1/2"></i>
+            <input type="text" id="patientSearchInput" oninput="filterPatients()" placeholder="Search patient or room..." class="w-full h-8 pl-8 pr-3 rounded-md bg-white dark:bg-[#121520] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-900 dark:text-[#f1f3f7] placeholder:text-slate-400 dark:placeholder:text-[#6e768b] focus:outline-none focus:border-blue-500 transition-colors shadow-sm dark:shadow-none">
+          </div>
+          <select id="statusFilterSelect" onchange="filterPatients()" class="h-8 px-2.5 rounded-md bg-white dark:bg-[#121520] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-700 dark:text-[#9ba3b5] focus:outline-none focus:border-blue-500 transition-colors shadow-sm dark:shadow-none">
+            <option value="all">All statuses</option>
+            <option value="streaming">Cameras online</option>
+            <option value="alert">Active alert</option>
+            <option value="offline">Offline</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Patients Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3" id="patientsGrid"></div>
+
+      <!-- Empty State -->
+      <div id="emptyRegistryState" class="hidden rounded-xl border border-dashed border-slate-300 dark:border-white/[0.08] bg-white/50 dark:bg-[#121520]/40 p-10 text-center flex flex-col items-center justify-center space-y-3">
+        <div class="w-9 h-9 rounded-md bg-slate-100 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] flex items-center justify-center text-slate-500 dark:text-[#6e768b]">
+          <i data-lucide="users" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <h3 class="text-xs font-semibold text-slate-900 dark:text-[#f1f3f7]">No patients in registry</h3>
+          <p class="text-xs text-slate-500 dark:text-[#6e768b] mt-0.5 max-w-sm">
+            Register a patient to assign a camera client ID and start tracking postures and falls.
+          </p>
+        </div>
+        <button onclick="openRegisterModal()" class="h-8 px-3 rounded-md bg-slate-900 text-white hover:bg-slate-800 dark:bg-[#f1f3f7] dark:text-[#0c0e14] dark:hover:bg-white text-xs font-medium flex items-center gap-1.5 transition-colors">
+          <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+          <span>Register first patient</span>
+        </button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Modal: Register Patient -->
+  <div class="fixed inset-0 z-50 bg-black/50 dark:bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4" id="registerModal">
+    <div class="w-full max-w-md rounded-xl bg-white dark:bg-[#121520] border border-slate-200 dark:border-white/[0.08] p-5 shadow-2xl space-y-4">
+      
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/[0.08]">
+        <h3 class="text-sm font-semibold text-slate-900 dark:text-[#f1f3f7]">Register patient</h3>
+        <button onclick="closeRegisterModal()" class="text-slate-400 hover:text-slate-700 dark:text-[#6e768b] dark:hover:text-[#f1f3f7] transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="registerForm" onsubmit="handleRegisterSubmit(event)" class="space-y-3 text-xs">
+        <div>
+          <label for="pName" class="block text-slate-700 dark:text-[#9ba3b5] mb-1">Full name *</label>
+          <input type="text" id="pName" required placeholder="e.g. Margaret Jenkins" class="w-full h-8 px-2.5 rounded-md bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] text-slate-900 dark:text-[#f1f3f7] placeholder:text-slate-400 dark:placeholder:text-[#6e768b] focus:outline-none focus:border-blue-500 transition-colors">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="pAge" class="block text-slate-700 dark:text-[#9ba3b5] mb-1">Age *</label>
+            <input type="number" id="pAge" required min="1" max="120" value="75" class="w-full h-8 px-2.5 rounded-md bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] text-slate-900 dark:text-[#f1f3f7] focus:outline-none focus:border-blue-500 transition-colors">
+          </div>
+          <div>
+            <label for="pGender" class="block text-slate-700 dark:text-[#9ba3b5] mb-1">Gender *</label>
+            <select id="pGender" required class="w-full h-8 px-2.5 rounded-md bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] text-slate-900 dark:text-[#f1f3f7] focus:outline-none focus:border-blue-500 transition-colors">
               <option value="Female">Female</option>
               <option value="Male">Male</option>
               <option value="Other">Other</option>
             </select>
           </div>
         </div>
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-          <div class="form-group">
-            <label for="pRoom">Room / Bed Number</label>
-            <input type="text" id="pRoom" required placeholder="e.g. Room 204-B">
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="pRoom" class="block text-slate-700 dark:text-[#9ba3b5] mb-1">Room or bed *</label>
+            <input type="text" id="pRoom" required placeholder="e.g. 204-B" class="w-full h-8 px-2.5 rounded-md bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] text-slate-900 dark:text-[#f1f3f7] placeholder:text-slate-400 dark:placeholder:text-[#6e768b] focus:outline-none focus:border-blue-500 transition-colors">
           </div>
-          <div class="form-group">
-            <label for="pClientId">Client / Camera ID</label>
-            <input type="text" id="pClientId" required placeholder="e.g. client-204">
+          <div>
+            <label for="pClientId" class="block text-slate-700 dark:text-[#9ba3b5] mb-1">Camera ID *</label>
+            <input type="text" id="pClientId" required placeholder="e.g. cam-204" class="w-full h-8 px-2.5 rounded-md bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] text-slate-900 dark:text-[#f1f3f7] placeholder:text-slate-400 dark:placeholder:text-[#6e768b] focus:outline-none focus:border-blue-500 transition-colors font-mono">
           </div>
         </div>
-        <div class="form-group">
-          <label for="pNotes">Medical & Fall Risk Notes</label>
-          <textarea id="pNotes" rows="2" placeholder="e.g. Unsteady gait, mild cognitive impairment."></textarea>
+
+        <div>
+          <label for="pNotes" class="block text-slate-700 dark:text-[#9ba3b5] mb-1">Clinical notes</label>
+          <textarea id="pNotes" rows="2" placeholder="e.g. Post-op recovery, assistance required when standing..." class="w-full p-2.5 rounded-md bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] text-slate-900 dark:text-[#f1f3f7] placeholder:text-slate-400 dark:placeholder:text-[#6e768b] focus:outline-none focus:border-blue-500 transition-colors resize-none"></textarea>
         </div>
-        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
-          <button type="button" class="btn btn-secondary" onclick="closeRegisterModal()">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Patient</button>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-white/[0.08]">
+          <button type="button" onclick="closeRegisterModal()" class="h-8 px-3 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#181d2c] dark:hover:bg-[#20263a] text-slate-600 dark:text-[#9ba3b5] hover:text-slate-900 dark:hover:text-[#f1f3f7] transition-colors">
+            Cancel
+          </button>
+          <button type="submit" class="h-8 px-3 rounded-md bg-slate-900 text-white hover:bg-slate-800 dark:bg-[#f1f3f7] dark:text-[#0c0e14] dark:hover:bg-white font-medium transition-colors">
+            Save patient
+          </button>
         </div>
       </form>
+
     </div>
   </div>
 
+  <!-- Client Script -->
   <script>
     let patients = [];
+    let filteredPatients = [];
     let activePatientId = null;
     let monitorWs = null;
     let currentObjectUrl = null;
@@ -414,7 +398,38 @@
     let frameCount = 0;
     let lastFpsUpdate = performance.now();
 
-    // --- Web Audio API Synthesizer ---
+    // --- Theme Switcher Management ---
+    function initTheme() {
+      const theme = localStorage.getItem('theme') || 'light';
+      updateThemeUI(theme);
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.contains('dark');
+      const nextTheme = isDark ? 'light' : 'dark';
+      if (nextTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      localStorage.setItem('theme', nextTheme);
+      updateThemeUI(nextTheme);
+    }
+
+    function updateThemeUI(theme) {
+      const icon = document.getElementById('themeIcon');
+      const text = document.getElementById('themeText');
+      if (icon) {
+        icon.setAttribute('data-lucide', theme === 'dark' ? 'sun' : 'moon');
+        icon.className = theme === 'dark' ? 'w-3.5 h-3.5 text-amber-400' : 'w-3.5 h-3.5 text-slate-600';
+      }
+      if (text) {
+        text.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
+      }
+      if (window.lucide) lucide.createIcons();
+    }
+
+    // --- Web Audio API Alerts ---
     function initAudio() {
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -427,9 +442,18 @@
     function toggleSound() {
       soundEnabled = !soundEnabled;
       initAudio();
-      const btn = document.getElementById('soundToggleBtn');
-      btn.textContent = soundEnabled ? '🔊 Audio Alerts: ON' : '🔇 Audio Alerts: MUTED';
-      btn.style.borderColor = soundEnabled ? 'var(--card-border)' : 'var(--danger)';
+      const soundIcon = document.getElementById('soundIcon');
+      const soundText = document.getElementById('soundText');
+      if (soundEnabled) {
+        soundIcon.setAttribute('data-lucide', 'volume-2');
+        soundIcon.className = 'w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400';
+        soundText.textContent = 'Audio on';
+      } else {
+        soundIcon.setAttribute('data-lucide', 'volume-x');
+        soundIcon.className = 'w-3.5 h-3.5 text-red-600 dark:text-red-400';
+        soundText.textContent = 'Audio muted';
+      }
+      lucide.createIcons();
     }
 
     function playTone(freq, type, duration, delay = 0) {
@@ -441,7 +465,7 @@
           const gain = audioContext.createGain();
           osc.type = type;
           osc.frequency.setValueAtTime(freq, audioContext.currentTime);
-          gain.gain.setValueAtTime(0.25, audioContext.currentTime);
+          gain.gain.setValueAtTime(0.2, audioContext.currentTime);
           gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + duration);
           osc.connect(gain);
           gain.connect(audioContext.destination);
@@ -454,21 +478,18 @@
     function testAudioAlert(type) {
       initAudio();
       if (type === 'fall') {
-        // High urgency alternating alarm
-        playTone(880, 'sawtooth', 0.18, 0);
-        playTone(660, 'sawtooth', 0.18, 200);
-        playTone(880, 'sawtooth', 0.18, 400);
-        playTone(660, 'sawtooth', 0.25, 600);
+        playTone(880, 'sawtooth', 0.16, 0);
+        playTone(660, 'sawtooth', 0.16, 180);
+        playTone(880, 'sawtooth', 0.16, 360);
+        playTone(660, 'sawtooth', 0.22, 540);
       } else {
-        // Prolonged posture chime
-        playTone(587.33, 'sine', 0.2, 0);
-        playTone(880, 'sine', 0.35, 180);
+        playTone(587.33, 'sine', 0.18, 0);
+        playTone(880, 'sine', 0.28, 160);
       }
     }
 
     function triggerAlertAudio(isFall, isProlonged) {
       const now = performance.now();
-      // Throttle audio alerts so they sound at most every 3.5 seconds
       if (now - lastSoundTime < 3500) return;
       if (isFall) {
         lastSoundTime = now;
@@ -479,25 +500,17 @@
       }
     }
 
-    // --- Patient Management ---
     async function loadPatients() {
       try {
         const res = await fetch('/api/patients');
         patients = await res.json();
-        renderPatients();
+        filterPatients();
         updateStats();
 
-        // If a patient monitor is active, synchronize alerts and telemetry
         if (activePatientId) {
           const current = patients.find(p => p.id === activePatientId);
           if (current) {
-            handleTelemetry({
-              is_streaming: current.is_streaming,
-              fall_alert: current.fall_alert,
-              prolonged_alert: current.prolonged_alert,
-              posture: current.current_posture,
-              posture_duration: current.posture_duration
-            });
+            handleTelemetry(current);
           }
         }
       } catch (err) {
@@ -509,65 +522,147 @@
       document.getElementById('statTotalPatients').textContent = patients.length;
       const activeStreams = patients.filter(p => p.is_streaming).length;
       document.getElementById('statActiveStreams').textContent = activeStreams;
-      const activeAlerts = patients.filter(p => p.fall_alert || p.prolonged_alert).length;
+
+      const activeAlerts = patients.filter(p => p.fall_alert || p.prolonged_alert);
       const alertEl = document.getElementById('statActiveAlerts');
-      alertEl.textContent = activeAlerts;
-      alertEl.style.color = activeAlerts > 0 ? '#ef4444' : '#10b981';
+      const alertContainer = document.getElementById('alertCardContainer');
+      const alertStatusSub = document.getElementById('alertStatusSub');
+
+      alertEl.textContent = activeAlerts.length;
+      if (activeAlerts.length > 0) {
+        alertEl.className = 'text-2xl font-semibold tracking-tight text-red-600 dark:text-red-400 font-mono mt-1';
+        alertContainer.className = 'rounded-xl bg-red-50 dark:bg-[#121520] border border-red-200 dark:border-red-500/30 p-4 shadow-sm dark:shadow-none';
+        alertStatusSub.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span><span class="text-red-600 dark:text-red-400 font-medium">${activeAlerts.length} alert active</span>`;
+      } else {
+        alertEl.className = 'text-2xl font-semibold tracking-tight text-slate-900 dark:text-[#f1f3f7] font-mono mt-1';
+        alertContainer.className = 'rounded-xl bg-white dark:bg-[#121520] border border-slate-200 dark:border-white/[0.08] p-4 shadow-sm dark:shadow-none';
+        alertStatusSub.innerHTML = `<i data-lucide="check" class="w-3 h-3 text-emerald-600 dark:text-emerald-400"></i><span>No unaddressed incidents</span>`;
+      }
+      lucide.createIcons();
+    }
+
+    function filterPatients() {
+      const q = document.getElementById('patientSearchInput').value.toLowerCase().trim();
+      const statusFilter = document.getElementById('statusFilterSelect').value;
+
+      filteredPatients = patients.filter(p => {
+        const matchesQuery = 
+          p.name.toLowerCase().includes(q) ||
+          p.room_number.toLowerCase().includes(q) ||
+          p.client_id.toLowerCase().includes(q);
+
+        if (!matchesQuery) return false;
+
+        if (statusFilter === 'streaming') return p.is_streaming;
+        if (statusFilter === 'alert') return p.fall_alert || p.prolonged_alert;
+        if (statusFilter === 'offline') return !p.is_streaming;
+        return true;
+      });
+
+      renderPatients();
     }
 
     function renderPatients() {
       const grid = document.getElementById('patientsGrid');
+      const emptyState = document.getElementById('emptyRegistryState');
+
       if (!patients.length) {
-        grid.innerHTML = '<div style="color:var(--text-muted);">No patients registered yet. Click "+ Register Patient" above.</div>';
+        grid.innerHTML = '';
+        emptyState.classList.remove('hidden');
         return;
       }
 
-      grid.innerHTML = patients.map(p => {
-        let badgeHtml = '';
+      emptyState.classList.add('hidden');
+
+      if (!filteredPatients.length) {
+        grid.innerHTML = `
+          <div class="col-span-full py-8 text-center text-slate-400 dark:text-[#6e768b] text-xs">
+            No matching patient records found
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = filteredPatients.map(p => {
+        let statusBadge = '';
+        let cardBorder = 'border-slate-200 dark:border-white/[0.08]';
+
         if (p.fall_alert) {
-          badgeHtml = '<span class="badge badge-fall">🚨 Fall Confirmed</span>';
+          cardBorder = 'border-red-300 dark:border-red-500/40 bg-red-50/50 dark:bg-red-950/10';
+          statusBadge = `
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400 border border-red-200 dark:border-red-500/25">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+              Fall confirmed
+            </span>
+          `;
         } else if (p.prolonged_alert) {
-          badgeHtml = `<span class="badge badge-prolonged">⚠️ Prolonged Posture</span>`;
+          cardBorder = 'border-amber-300 dark:border-amber-500/40 bg-amber-50/50 dark:bg-amber-950/10';
+          statusBadge = `
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400 border border-amber-200 dark:border-amber-500/25">
+              Prolonged (${escapeHtml(p.current_posture)})
+            </span>
+          `;
         } else if (p.is_streaming) {
-          badgeHtml = `<span class="badge badge-live">● Live (${p.current_posture})</span>`;
+          statusBadge = `
+            <span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/25">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              ${escapeHtml(p.current_posture)}
+            </span>
+          `;
         } else {
-          badgeHtml = '<span class="badge badge-offline">Offline</span>';
+          statusBadge = `
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium text-slate-500 dark:text-[#6e768b] bg-slate-100 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.06]">
+              Offline
+            </span>
+          `;
         }
 
-        const hasAlertClass = (p.fall_alert || p.prolonged_alert) ? 'has-alert' : '';
-
         return `
-          <div class="patient-card ${hasAlertClass}">
-            <div class="patient-card-header">
-              <div>
-                <h3 class="patient-name">${escapeHtml(p.name)}</h3>
-                <div class="patient-room">${escapeHtml(p.room_number)} &bull; ${p.age}y (${escapeHtml(p.gender)})</div>
+          <div class="rounded-xl bg-white dark:bg-[#121520] p-4 flex flex-col justify-between border ${cardBorder} shadow-sm dark:shadow-none transition-colors">
+            <div>
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <h3 class="text-sm font-semibold text-slate-900 dark:text-[#f1f3f7]">${escapeHtml(p.name)}</h3>
+                  <div class="text-xs text-slate-500 dark:text-[#9ba3b5] mt-0.5">${escapeHtml(p.room_number)} &bull; ${p.age}y &bull; ${escapeHtml(p.gender)}</div>
+                </div>
+                <div>${statusBadge}</div>
               </div>
-              <div>${badgeHtml}</div>
+
+              <div class="mt-3 pt-3 border-t border-slate-100 dark:border-white/[0.06] text-xs space-y-1">
+                <div class="flex items-center justify-between text-slate-500 dark:text-[#6e768b]">
+                  <span>Camera ID</span>
+                  <code class="font-mono text-slate-700 dark:text-[#9ba3b5]">${escapeHtml(p.client_id)}</code>
+                </div>
+                <div class="text-[11px] text-slate-500 dark:text-[#6e768b] line-clamp-1">
+                  ${escapeHtml(p.notes || 'No notes on file')}
+                </div>
+              </div>
             </div>
-            <div class="patient-meta">
-              <div><strong>Client / Cam ID:</strong> <code>${escapeHtml(p.client_id)}</code></div>
-              <div style="margin-top:4px;"><strong>Notes:</strong> ${escapeHtml(p.notes || 'None')}</div>
-            </div>
-            <div class="patient-footer">
-              <span style="font-size:12px; color:var(--text-muted);">
-                ${p.is_streaming ? 'Streaming now' : 'Camera ready'}
+
+            <div class="mt-4 pt-3 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between">
+              <span class="text-[11px] text-slate-500 dark:text-[#6e768b]">
+                ${p.is_streaming ? '<span class="text-emerald-600 dark:text-emerald-400 font-medium">Stream connected</span>' : 'Camera standby'}
               </span>
-              <button class="btn btn-primary" style="padding:6px 14px; font-size:13px;" onclick="openMonitor(${p.id})">
-                👁️ View Live Stream
+              <button onclick="openMonitor(${p.id})" class="h-7 px-2.5 rounded bg-slate-100 hover:bg-slate-200 dark:bg-[#181d2c] dark:hover:bg-[#20263a] text-xs text-slate-700 dark:text-[#9ba3b5] hover:text-slate-900 dark:hover:text-[#f1f3f7] border border-slate-200 dark:border-white/[0.08] transition-colors flex items-center gap-1">
+                <i data-lucide="eye" class="w-3 h-3"></i>
+                <span>Open monitor</span>
               </button>
             </div>
           </div>
         `;
       }).join('');
+
+      lucide.createIcons();
     }
 
     function openRegisterModal() {
-      document.getElementById('registerModal').style.display = 'flex';
+      document.getElementById('registerModal').classList.remove('hidden');
+      document.getElementById('registerModal').classList.add('flex');
     }
 
     function closeRegisterModal() {
-      document.getElementById('registerModal').style.display = 'none';
+      document.getElementById('registerModal').classList.add('hidden');
+      document.getElementById('registerModal').classList.remove('flex');
       document.getElementById('registerForm').reset();
     }
 
@@ -599,7 +694,6 @@
       }
     }
 
-    // --- Live Monitoring ---
     async function openMonitor(patientId) {
       activePatientId = patientId;
       const patient = patients.find(p => p.id === patientId);
@@ -607,12 +701,14 @@
 
       document.getElementById('monitorPatientName').textContent = patient.name;
       document.getElementById('monitorPatientRoom').textContent = patient.room_number;
-      document.getElementById('monitorClientId').textContent = 'Client: ' + patient.client_id;
+      document.getElementById('monitorClientId').textContent = patient.client_id;
       document.getElementById('cameraCodeHint').textContent = patient.client_id;
-      document.getElementById('monitorSection').style.display = 'block';
-      document.getElementById('monitorSection').scrollIntoView({ behavior: 'smooth' });
+      document.getElementById('monitorPatientMeta').textContent = `${patient.age}y &bull; ${patient.gender}`;
+      
+      const monitorSec = document.getElementById('monitorSection');
+      monitorSec.classList.remove('hidden');
+      monitorSec.scrollIntoView({ behavior: 'smooth' });
 
-      // Connect WebSocket for this patient
       connectMonitorWs(patientId);
       loadCurrentPatientLogs();
     }
@@ -622,7 +718,7 @@
         monitorWs.close();
         monitorWs = null;
       }
-      document.getElementById('monitorSection').style.display = 'none';
+      document.getElementById('monitorSection').classList.add('hidden');
       activePatientId = null;
     }
 
@@ -653,7 +749,6 @@
           URL.revokeObjectURL(img.dataset.prevUrl);
           delete img.dataset.prevUrl;
         }
-        // Pull next frame
         if (monitorWs && monitorWs.readyState === WebSocket.OPEN) {
           monitorWs.send('ready');
         }
@@ -671,8 +766,7 @@
           return;
         }
 
-        // Image blob frame received
-        overlay.style.display = 'none';
+        overlay.classList.add('hidden');
         const nextUrl = URL.createObjectURL(event.data);
         if (currentObjectUrl) {
           img.dataset.prevUrl = currentObjectUrl;
@@ -682,10 +776,9 @@
       };
 
       monitorWs.onclose = () => {
-        overlay.style.display = 'block';
+        overlay.classList.remove('hidden');
       };
 
-      // Periodic heartbeat to ensure stream stays responsive if a packet is dropped
       if (!window._monitorHeartbeat) {
         window._monitorHeartbeat = setInterval(() => {
           if (monitorWs && monitorWs.readyState === WebSocket.OPEN && performance.now() - lastFpsUpdate > 2500) {
@@ -701,24 +794,26 @@
       const overlay = document.getElementById('noStreamOverlay');
 
       if (!t.is_streaming) {
-        overlay.style.display = 'block';
+        overlay.classList.remove('hidden');
       }
 
       if (t.fall_alert) {
-        banner.style.display = 'flex';
-        banner.className = 'alert-banner fall';
-        document.getElementById('alertBannerText').textContent = '🚨 EMERGENCY: CONFIRMED FALL DETECTED - SUBJECT UNRESPONSIVE';
-        resetBtn.style.display = 'inline-flex';
+        banner.className = 'p-3 rounded-lg border border-red-300 dark:border-red-500/30 bg-red-50 dark:bg-red-950/20 text-red-800 dark:text-red-300 text-xs flex items-center justify-between gap-3';
+        banner.classList.remove('hidden');
+        document.getElementById('alertBannerTitle').textContent = 'Fall confirmed';
+        document.getElementById('alertBannerText').textContent = 'Subject is down and inactive. Check bedside immediately.';
+        resetBtn.classList.remove('hidden');
         triggerAlertAudio(true, false);
       } else if (t.prolonged_alert) {
-        banner.style.display = 'flex';
-        banner.className = 'alert-banner prolonged';
-        document.getElementById('alertBannerText').textContent = `⚠️ PROLONGED POSTURE WARNING: Subject in ${t.posture} for >= ${t.posture_duration}s`;
-        resetBtn.style.display = 'inline-flex';
+        banner.className = 'p-3 rounded-lg border border-amber-300 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 text-xs flex items-center justify-between gap-3';
+        banner.classList.remove('hidden');
+        document.getElementById('alertBannerTitle').textContent = 'Prolonged posture';
+        document.getElementById('alertBannerText').textContent = `Subject in ${t.current_posture || t.posture} for >= ${t.posture_duration}s.`;
+        resetBtn.classList.remove('hidden');
         triggerAlertAudio(false, true);
       } else {
-        banner.style.display = 'none';
-        resetBtn.style.display = 'none';
+        banner.classList.add('hidden');
+        resetBtn.classList.add('hidden');
       }
     }
 
@@ -729,24 +824,28 @@
         const logs = await res.json();
         const tbody = document.getElementById('logsTableBody');
         if (!logs.length) {
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#64748b;">No posture episodes >= 5s or alerts logged yet.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-slate-400 dark:text-[#6e768b] font-sans text-xs">No posture episodes (>= 5s) or alerts recorded yet</td></tr>';
           return;
         }
 
         tbody.innerHTML = logs.map(l => {
-          let badgeClass = 'badge-live';
-          if (l.event_type === 'FALL_ALERT') badgeClass = 'badge-fall';
-          else if (l.event_type === 'PROLONGED_POSTURE') badgeClass = 'badge-prolonged';
-          else if (l.event_type === 'NORMAL_POSTURE') badgeClass = 'badge-live';
-          else badgeClass = 'badge-offline';
+          let eventBadge = '';
+          if (l.event_type === 'FALL_ALERT') {
+            eventBadge = '<span class="text-red-600 dark:text-red-400 font-medium">Fall</span>';
+          } else if (l.event_type === 'PROLONGED_POSTURE') {
+            eventBadge = '<span class="text-amber-600 dark:text-amber-400 font-medium">Prolonged</span>';
+          } else if (l.event_type === 'NORMAL_POSTURE') {
+            eventBadge = '<span class="text-emerald-600 dark:text-emerald-400 font-medium">Posture</span>';
+          } else {
+            eventBadge = `<span class="text-slate-600 dark:text-[#9ba3b5]">${escapeHtml(l.event_type)}</span>`;
+          }
 
           return `
-            <tr>
-              <td style="white-space:nowrap; color:#94a3b8;">${escapeHtml(l.timestamp)}</td>
-              <td><span class="badge ${badgeClass}">${escapeHtml(l.event_type)}</span></td>
-              <td><strong>${escapeHtml(l.posture)}</strong></td>
-              <td>${l.duration_seconds}s</td>
-              <td style="color:#cbd5e1;">${escapeHtml(l.details || '')}</td>
+            <tr class="hover:bg-slate-100/60 dark:hover:bg-white/[0.02] transition-colors">
+              <td class="py-2 px-3 whitespace-nowrap text-slate-500 dark:text-[#6e768b]">${escapeHtml(l.timestamp)}</td>
+              <td class="py-2 px-3">${eventBadge}</td>
+              <td class="py-2 px-3 text-slate-900 dark:text-[#f1f3f7]">${escapeHtml(l.posture)}</td>
+              <td class="py-2 px-3 text-right text-slate-600 dark:text-[#9ba3b5]">${l.duration_seconds}s</td>
             </tr>
           `;
         }).join('');
@@ -759,8 +858,8 @@
       if (!activePatientId) return;
       try {
         await fetch(`/api/patients/${activePatientId}/reset_alert`, { method: 'POST' });
-        document.getElementById('activeAlertBanner').style.display = 'none';
-        document.getElementById('resetAlertBtn').style.display = 'none';
+        document.getElementById('activeAlertBanner').classList.add('hidden');
+        document.getElementById('resetAlertBtn').classList.add('hidden');
         await loadPatients();
         loadCurrentPatientLogs();
       } catch(e) {}
@@ -771,7 +870,7 @@
       if (!patient) return;
       const url = `${location.protocol}//${location.host}/capture?client_id=${encodeURIComponent(patient.client_id)}`;
       navigator.clipboard.writeText(url).then(() => {
-        alert('Camera URL copied to clipboard!\nOpen this URL on the phone:\n' + url);
+        alert('Camera URL copied to clipboard:\n' + url);
       });
     }
 
@@ -780,16 +879,16 @@
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    // Refresh patient list and logs periodically
     setInterval(() => {
       loadPatients();
       if (activePatientId) {
         loadCurrentPatientLogs();
       }
-    }, 3000);
+    }, 2500);
 
-    // Initial load
+    initTheme();
     loadPatients();
+    lucide.createIcons();
   </script>
 </body>
 </html>

@@ -3,132 +3,121 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Camera Stream — Clinical Posture & Fall Detection</title>
-  <style>
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      margin: 0;
-      background: #0f172a;
-      color: #f8fafc;
-      padding: 16px;
-    }
-    main {
-      max-width: 600px;
-      margin: 0 auto;
-    }
-    h1 {
-      font-size: 1.4rem;
-      margin: 0 0 10px 0;
-    }
-    .card {
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-    label {
-      display: block;
-      font-size: 13px;
-      color: #94a3b8;
-      margin-bottom: 6px;
-      font-weight: 600;
-    }
-    select {
-      width: 100%;
-      padding: 10px 12px;
-      background: #0f172a;
-      border: 1px solid #475569;
-      border-radius: 8px;
-      color: #f8fafc;
-      font-size: 14px;
-      margin-bottom: 12px;
-    }
-    .stats-bar {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 12px;
-      font-size: 0.85rem;
-    }
-    .badge {
-      background: #0f172a;
-      padding: 6px 12px;
-      border-radius: 6px;
-      color: #93c5fd;
-      border: 1px solid #334155;
-    }
-    .btn-group {
-      margin: 12px 0;
-      display: flex;
-      gap: 10px;
-    }
-    button {
-      padding: 12px 20px;
-      border: 0;
-      border-radius: 8px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: opacity 0.15s ease;
-    }
-    #start { background: #16a34a; color: white; }
-    #stop { background: #dc2626; color: white; }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-    video {
-      width: 100%;
-      background: #000;
-      border-radius: 10px;
-      margin-top: 10px;
-      aspect-ratio: 4 / 3;
-      object-fit: cover;
-    }
-    .status {
-      padding: 10px 14px;
-      background: #0f172a;
-      border-radius: 8px;
-      margin-top: 10px;
-      font-size: 0.9rem;
-      border-left: 4px solid #3b82f6;
-    }
-    .nav-links {
-      margin-top: 18px;
-      font-size: 0.85rem;
-    }
-    a { color: #60a5fa; text-decoration: none; }
-  </style>
-</head>
-<body>
-  <main>
-    <h1>📱 Clinical Camera Capture</h1>
+  <title>KineticGuard — Camera Node</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    (function() {
+      const theme = localStorage.getItem('theme') || 'light';
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    })();
 
-    <div class="card">
-      <label for="patientSelect">Select Target Patient / Room</label>
-      <select id="patientSelect" onchange="onPatientChange()">
-        <option value="">Loading registered patients…</option>
-      </select>
-      <div id="patientDetails" style="font-size:13px; color:#cbd5e1; line-height:1.4;">
-        Loading patient profile…
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 dark:bg-[#0c0e14] text-slate-900 dark:text-[#f1f3f7] min-h-screen flex flex-col font-sans antialiased selection:bg-blue-600 selection:text-white transition-colors duration-150">
+
+  <div class="flex-1 max-w-lg w-full mx-auto p-4 sm:p-6 flex flex-col justify-between space-y-4">
+    
+    <!-- Header -->
+    <header class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/[0.08]">
+      <div class="flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-md bg-slate-100 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] flex items-center justify-center text-blue-600 dark:text-blue-400">
+          <i data-lucide="camera" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <h1 class="text-xs font-semibold text-slate-900 dark:text-[#f1f3f7]">Camera node</h1>
+          <p class="text-[11px] text-slate-500 dark:text-[#6e768b]">Optical telemetry input</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="themeToggleBtn" onclick="toggleTheme()" class="h-7 px-2 rounded bg-slate-100 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] hover:bg-slate-200 dark:hover:bg-[#20263a] text-xs text-slate-700 dark:text-[#9ba3b5] flex items-center gap-1 transition-colors">
+          <i data-lucide="moon" id="themeIcon" class="w-3.5 h-3.5"></i>
+        </button>
+        <a href="/dashboard" class="h-7 px-2.5 rounded bg-slate-100 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] hover:bg-slate-200 dark:hover:bg-[#20263a] text-xs text-slate-700 dark:text-[#9ba3b5] hover:text-slate-900 dark:hover:text-[#f1f3f7] transition-colors flex items-center gap-1.5">
+          <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i>
+          <span>Dashboard</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- Patient Selection -->
+    <div class="rounded-xl bg-white dark:bg-[#121520] border border-slate-200 dark:border-white/[0.08] p-4 space-y-2.5 shadow-sm dark:shadow-none">
+      <div>
+        <label for="patientSelect" class="block text-xs text-slate-600 dark:text-[#9ba3b5] mb-1">Assigned patient and bed</label>
+        <select id="patientSelect" onchange="onPatientChange()" class="w-full h-8 px-2.5 rounded-md bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] text-xs text-slate-900 dark:text-[#f1f3f7] focus:outline-none focus:border-blue-500 transition-colors">
+          <option value="">Fetching patient list…</option>
+        </select>
+      </div>
+
+      <div id="patientDetails" class="text-xs text-slate-500 dark:text-[#6e768b] pt-2 border-t border-slate-100 dark:border-white/[0.06] leading-relaxed">
+        Select a patient to bind this camera stream
       </div>
     </div>
 
-    <div class="stats-bar">
-      <div class="badge" id="fpsStat">FPS: 0</div>
-      <div class="badge" id="latencyStat">Latency: -- ms</div>
+    <!-- Telemetry Status Bar -->
+    <div class="grid grid-cols-2 gap-2.5">
+      <div class="rounded-lg bg-white dark:bg-[#121520] border border-slate-200 dark:border-white/[0.08] px-3 py-2 flex items-center justify-between shadow-sm dark:shadow-none">
+        <span class="text-xs text-slate-500 dark:text-[#6e768b]">Capture rate</span>
+        <span class="text-xs font-mono font-medium text-emerald-600 dark:text-emerald-400" id="fpsStat">0.0 FPS</span>
+      </div>
+      <div class="rounded-lg bg-white dark:bg-[#121520] border border-slate-200 dark:border-white/[0.08] px-3 py-2 flex items-center justify-between shadow-sm dark:shadow-none">
+        <span class="text-xs text-slate-500 dark:text-[#6e768b]">Network RTT</span>
+        <span class="text-xs font-mono font-medium text-slate-700 dark:text-[#9ba3b5]" id="latencyStat">-- ms</span>
+      </div>
     </div>
 
-    <div class="btn-group">
-      <button id="start">▶ Start Streaming</button>
-      <button id="stop" disabled>⏹ Stop</button>
+    <!-- Video Canvas Viewport -->
+    <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-slate-200 dark:border-white/[0.08] flex items-center justify-center">
+      <video id="preview" autoplay playsinline muted class="w-full h-full object-cover"></video>
+      <canvas id="canvas" class="hidden"></canvas>
+
+      <!-- Pill Overlay -->
+      <div class="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none text-[11px] font-mono">
+        <div id="statusPill" class="px-2 py-0.5 rounded bg-black/60 backdrop-blur-sm border border-white/[0.08] text-[#9ba3b5] flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-slate-500" id="statusDot"></span>
+          <span id="statusText">Camera standby</span>
+        </div>
+        <div class="px-2 py-0.5 rounded bg-black/60 backdrop-blur-sm border border-white/[0.08] text-[#6e768b]">
+          480p &bull; ACK flow
+        </div>
+      </div>
     </div>
 
-    <div class="status" id="status">Select patient and click Start Streaming.</div>
-    <video id="preview" autoplay playsinline muted></video>
-    <canvas id="canvas" style="display:none"></canvas>
-
-    <div class="nav-links">
-      <a href="/dashboard">← Back to Patient Dashboard</a>
+    <!-- Action Controls -->
+    <div class="grid grid-cols-2 gap-2.5 pt-1">
+      <button id="startBtn" onclick="start()" class="h-9 rounded-md bg-slate-900 text-white hover:bg-slate-800 dark:bg-[#f1f3f7] dark:text-[#0c0e14] dark:hover:bg-white text-xs font-medium flex items-center justify-center gap-1.5 transition-colors disabled:opacity-40 disabled:pointer-events-none">
+        <i data-lucide="play" class="w-3.5 h-3.5"></i>
+        <span>Start camera</span>
+      </button>
+      <button id="stopBtn" onclick="stopStreaming(true)" disabled class="h-9 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#181d2c] dark:hover:bg-[#20263a] text-xs text-red-600 dark:text-red-400 border border-slate-200 dark:border-white/[0.08] flex items-center justify-center gap-1.5 transition-colors disabled:opacity-40 disabled:pointer-events-none">
+        <i data-lucide="square" class="w-3.5 h-3.5"></i>
+        <span>Stop stream</span>
+      </button>
     </div>
-  </main>
+
+    <div class="text-center text-[11px] text-slate-500 dark:text-[#6e768b] pt-1">
+      Keep screen awake while monitoring bedside
+    </div>
+
+  </div>
 
   <script>
     let stream = null;
@@ -144,17 +133,43 @@
     const video = document.getElementById('preview');
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d', { willReadFrequently: false });
-    const statusEl = document.getElementById('status');
+    const statusText = document.getElementById('statusText');
+    const statusDot = document.getElementById('statusDot');
     const fpsStat = document.getElementById('fpsStat');
     const latencyStat = document.getElementById('latencyStat');
-    const startBtn = document.getElementById('start');
-    const stopBtn = document.getElementById('stop');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
     const patientSelect = document.getElementById('patientSelect');
     const patientDetails = document.getElementById('patientDetails');
 
-    // Parse URL query parameter
     const urlParams = new URLSearchParams(window.location.search);
     const initialClientId = urlParams.get('client_id');
+
+    function initTheme() {
+      const theme = localStorage.getItem('theme') || 'light';
+      updateThemeUI(theme);
+    }
+
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.contains('dark');
+      const nextTheme = isDark ? 'light' : 'dark';
+      if (nextTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      localStorage.setItem('theme', nextTheme);
+      updateThemeUI(nextTheme);
+    }
+
+    function updateThemeUI(theme) {
+      const icon = document.getElementById('themeIcon');
+      if (icon) {
+        icon.setAttribute('data-lucide', theme === 'dark' ? 'sun' : 'moon');
+        icon.className = theme === 'dark' ? 'w-3.5 h-3.5 text-amber-400' : 'w-3.5 h-3.5 text-slate-600';
+      }
+      if (window.lucide) lucide.createIcons();
+    }
 
     async function loadPatients() {
       try {
@@ -162,13 +177,13 @@
         patients = await res.json();
         if (!patients.length) {
           patientSelect.innerHTML = '<option value="">No registered patients</option>';
-          patientDetails.textContent = 'Please register a patient on the dashboard first.';
+          patientDetails.innerHTML = 'Register a patient in the <a href="/dashboard" class="text-blue-600 dark:text-blue-400 hover:underline">Dashboard</a> to start streaming.';
           return;
         }
 
         patientSelect.innerHTML = patients.map(p => {
           const selected = (initialClientId && p.client_id === initialClientId) ? 'selected' : '';
-          return `<option value="${escapeHtml(p.client_id)}" ${selected}>${escapeHtml(p.name)} (${escapeHtml(p.room_number)}) - ${escapeHtml(p.client_id)}</option>`;
+          return `<option value="${escapeHtml(p.client_id)}" ${selected}>${escapeHtml(p.name)} (${escapeHtml(p.room_number)}) — ID: ${escapeHtml(p.client_id)}</option>`;
         }).join('');
 
         onPatientChange();
@@ -181,14 +196,17 @@
       selectedClientId = patientSelect.value;
       const patient = patients.find(p => p.client_id === selectedClientId);
       if (patient) {
-        patientDetails.innerHTML = `<strong>Patient:</strong> ${escapeHtml(patient.name)} &bull; <strong>Room:</strong> ${escapeHtml(patient.room_number)} &bull; <strong>Client ID:</strong> <code>${escapeHtml(patient.client_id)}</code><br><span style="color:#94a3b8;">${escapeHtml(patient.notes || 'No special clinical notes')}</span>`;
+        patientDetails.innerHTML = `
+          <div class="text-slate-900 dark:text-[#f1f3f7] font-medium">${escapeHtml(patient.name)} &bull; ${escapeHtml(patient.room_number)}</div>
+          <div class="text-[11px] text-slate-500 dark:text-[#6e768b] mt-0.5 font-mono">Assigned key: ${escapeHtml(patient.client_id)}</div>
+        `;
       }
     }
 
     async function start() {
       if (stream) return;
       if (!selectedClientId) {
-        alert('Please select a patient before starting the stream.');
+        alert('Please select a registered patient first.');
         return;
       }
 
@@ -210,8 +228,8 @@
         ws = new WebSocket(`${proto}//${location.host}/ws/capture/${encodeURIComponent(selectedClientId)}`);
 
         ws.onopen = () => {
-          statusEl.textContent = `Connected! Streaming camera for ${selectedClientId} with zero-lag flow control.`;
-          statusEl.style.borderLeftColor = '#16a34a';
+          statusText.textContent = `Live: ${selectedClientId}`;
+          statusDot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
           stopBtn.disabled = false;
           waitingForAck = false;
           requestNextFrame(0);
@@ -220,27 +238,26 @@
         ws.onmessage = (event) => {
           if (event.data === 'ack') {
             const rtt = Math.round(performance.now() - lastSendTimestamp);
-            latencyStat.textContent = `Latency: ${rtt} ms`;
+            latencyStat.textContent = `${rtt} ms`;
             waitingForAck = false;
             requestNextFrame(0);
           }
         };
 
         ws.onclose = () => {
-          statusEl.textContent = 'WebSocket disconnected.';
-          statusEl.style.borderLeftColor = '#dc2626';
+          statusText.textContent = 'Disconnected';
+          statusDot.className = 'w-1.5 h-1.5 rounded-full bg-red-500';
           stopStreaming(false);
         };
 
         ws.onerror = () => {
-          statusEl.textContent = 'WebSocket connection error.';
-          statusEl.style.borderLeftColor = '#dc2626';
+          statusText.textContent = 'Socket error';
+          statusDot.className = 'w-1.5 h-1.5 rounded-full bg-red-500';
         };
       } catch (err) {
         startBtn.disabled = false;
         patientSelect.disabled = false;
-        statusEl.textContent = 'Camera error: ' + err.message;
-        statusEl.style.borderLeftColor = '#dc2626';
+        alert('Camera access error: ' + err.message);
       }
     }
 
@@ -256,7 +273,6 @@
 
       const now = performance.now();
 
-      // Recovery: unlock if ACK delayed > 1000ms
       if (waitingForAck && (now - lastSendTimestamp > 1000)) {
         waitingForAck = false;
       }
@@ -307,7 +323,7 @@
       const now = performance.now();
       const duration = now - lastFpsCalculation;
       if (duration >= 1000) {
-        fpsStat.textContent = `FPS: ${((frameCounter * 1000) / duration).toFixed(1)}`;
+        fpsStat.textContent = `${((frameCounter * 1000) / duration).toFixed(1)} FPS`;
         frameCounter = 0;
         lastFpsCalculation = now;
       }
@@ -332,8 +348,8 @@
       patientSelect.disabled = false;
       waitingForAck = false;
       if (closeSocket) {
-        statusEl.textContent = 'Streaming stopped.';
-        statusEl.style.borderLeftColor = '#3b82f6';
+        statusText.textContent = 'Camera standby';
+        statusDot.className = 'w-1.5 h-1.5 rounded-full bg-slate-400';
       }
     }
 
@@ -342,11 +358,9 @@
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    startBtn.onclick = start;
-    stopBtn.onclick = () => stopStreaming(true);
-    window.addEventListener('beforeunload', () => stopStreaming(true));
-
+    initTheme();
     loadPatients();
+    lucide.createIcons();
   </script>
 </body>
 </html>
