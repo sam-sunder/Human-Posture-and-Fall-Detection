@@ -92,6 +92,12 @@
           <span class="hidden sm:inline">Camera node</span>
         </a>
 
+        <!-- ESP32 Sensors Link -->
+        <button onclick="openDevicesModal()" class="h-8 px-2.5 rounded-md bg-slate-100 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] hover:bg-slate-200 dark:hover:bg-[#20263a] text-xs text-slate-700 dark:text-[#9ba3b5] hover:text-slate-900 dark:hover:text-[#f1f3f7] flex items-center gap-1.5 transition-colors">
+          <i data-lucide="cpu" class="w-3.5 h-3.5 text-indigo-500"></i>
+          <span class="hidden sm:inline">ESP32 nodes</span>
+        </button>
+
         <!-- Register Patient Modal Action -->
         <button onclick="openRegisterModal()" class="h-8 px-3 rounded-md bg-slate-900 text-white hover:bg-slate-800 dark:bg-[#f1f3f7] dark:text-[#0c0e14] dark:hover:bg-white text-xs font-medium flex items-center gap-1.5 transition-colors">
           <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
@@ -138,13 +144,13 @@
         </div>
       </div>
 
-      <!-- Pose Telemetry Status -->
-      <div class="rounded-xl bg-white dark:bg-[#121520] border border-slate-200 dark:border-white/[0.08] p-4 shadow-sm dark:shadow-none">
-        <div class="text-xs text-slate-500 dark:text-[#6e768b]">Model inference</div>
-        <div class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-[#f1f3f7] font-mono mt-1">YOLO11-Pose</div>
+      <!-- ESP32 Nodes Online -->
+      <div onclick="openDevicesModal()" class="rounded-xl bg-white dark:bg-[#121520] border border-slate-200 dark:border-white/[0.08] p-4 shadow-sm dark:shadow-none cursor-pointer hover:border-slate-300 dark:hover:border-white/[0.15] transition-colors">
+        <div class="text-xs text-slate-500 dark:text-[#6e768b]">ESP32 nodes online</div>
+        <div class="text-2xl font-semibold tracking-tight text-indigo-600 dark:text-indigo-400 font-mono mt-1" id="statActiveDevices">0</div>
         <div class="text-[11px] text-slate-500 dark:text-[#6e768b] mt-2 flex items-center gap-1">
-          <i data-lucide="cpu" class="w-3 h-3 text-slate-400 dark:text-[#6e768b]"></i>
-          <span>384px resolution &bull; CPU inference</span>
+          <i data-lucide="cpu" class="w-3 h-3 text-indigo-500"></i>
+          <span>MAX30102 &bull; DS18B20</span>
         </div>
       </div>
 
@@ -195,6 +201,62 @@
           <button onclick="resetActiveAlert()" class="px-2 py-1 rounded bg-red-100 hover:bg-red-200 dark:bg-red-900/40 dark:hover:bg-red-900/60 text-red-900 dark:text-white text-[11px] font-medium shrink-0 transition-colors">
             Acknowledge
           </button>
+        </div>
+
+        <!-- Real-Time Clinical Vitals HUD (MAX30102 & DS18B20 Telemetry) -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <!-- Heart Rate -->
+          <div id="vitalCardHr" class="rounded-lg bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] p-3 transition-colors">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-[#6e768b]">
+              <span>Heart rate</span>
+              <i data-lucide="heart" class="w-3.5 h-3.5 text-rose-500"></i>
+            </div>
+            <div class="mt-1 flex items-baseline gap-1.5">
+              <span class="text-xl font-bold font-mono text-slate-900 dark:text-[#f1f3f7]" id="vitalHeartRate">--</span>
+              <span class="text-xs text-slate-500 font-mono">BPM</span>
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-[#6e768b] mt-1 truncate" id="vitalHeartRateStatus">MAX30102 sensor</div>
+          </div>
+
+          <!-- Blood Oxygen (SpO2) -->
+          <div id="vitalCardSpo2" class="rounded-lg bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] p-3 transition-colors">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-[#6e768b]">
+              <span>Blood oxygen</span>
+              <i data-lucide="activity" class="w-3.5 h-3.5 text-sky-500"></i>
+            </div>
+            <div class="mt-1 flex items-baseline gap-1.5">
+              <span class="text-xl font-bold font-mono text-slate-900 dark:text-[#f1f3f7]" id="vitalSpO2">--</span>
+              <span class="text-xs text-slate-500 font-mono">%</span>
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-[#6e768b] mt-1 truncate" id="vitalSpO2Status">SpO2 optical</div>
+          </div>
+
+          <!-- Body Temperature -->
+          <div id="vitalCardTemp" class="rounded-lg bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] p-3 transition-colors">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-[#6e768b]">
+              <span>Body temp</span>
+              <i data-lucide="thermometer" class="w-3.5 h-3.5 text-amber-500"></i>
+            </div>
+            <div class="mt-1 flex items-baseline gap-1.5">
+              <span class="text-xl font-bold font-mono text-slate-900 dark:text-[#f1f3f7]" id="vitalTempC">--</span>
+              <span class="text-xs text-slate-500 font-mono">°C</span>
+              <span class="text-[11px] text-slate-400 font-mono" id="vitalTempF">(--°F)</span>
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-[#6e768b] mt-1 truncate" id="vitalTempStatus">DS18B20 1-wire</div>
+          </div>
+
+          <!-- ESP32 Sensor Node Status -->
+          <div id="vitalCardNode" class="rounded-lg bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] p-3 transition-colors">
+            <div class="flex items-center justify-between text-xs text-slate-500 dark:text-[#6e768b]">
+              <span>Sensor node</span>
+              <i data-lucide="cpu" class="w-3.5 h-3.5 text-indigo-500"></i>
+            </div>
+            <div class="mt-1 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-600" id="vitalNodeDot"></span>
+              <span class="text-sm font-semibold text-slate-800 dark:text-[#f1f3f7] truncate" id="vitalNodeStatus">Standby</span>
+            </div>
+            <div class="text-[11px] text-slate-500 dark:text-[#6e768b] mt-1 truncate" id="vitalNodeMeta">ESP32 telemetry</div>
+          </div>
         </div>
 
         <!-- Monitoring Grid -->
@@ -385,10 +447,62 @@
     </div>
   </div>
 
+  <!-- Modal: ESP32 Sensor Nodes Registry -->
+  <div class="fixed inset-0 z-50 bg-black/50 dark:bg-black/70 backdrop-blur-sm hidden items-center justify-center p-4" id="devicesModal">
+    <div class="w-full max-w-2xl rounded-xl bg-white dark:bg-[#121520] border border-slate-200 dark:border-white/[0.08] p-5 shadow-2xl space-y-4">
+      
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-white/[0.08]">
+        <div class="flex items-center gap-2">
+          <i data-lucide="cpu" class="w-4 h-4 text-indigo-500"></i>
+          <h3 class="text-sm font-semibold text-slate-900 dark:text-[#f1f3f7]">ESP32 Sensor Nodes</h3>
+        </div>
+        <button onclick="closeDevicesModal()" class="text-slate-400 hover:text-slate-700 dark:text-[#6e768b] dark:hover:text-[#f1f3f7] transition-colors">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="text-xs text-slate-500 dark:text-[#6e768b]">
+        Registered hardware nodes streaming MAX30102 (pulse oximetry) and DS18B20 (body temperature) telemetry.
+      </div>
+
+      <div class="rounded-lg border border-slate-200 dark:border-white/[0.08] overflow-hidden max-h-72 overflow-y-auto">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead class="sticky top-0 bg-slate-100 dark:bg-[#181d2c] border-b border-slate-200 dark:border-white/[0.08] text-[11px] text-slate-500 dark:text-[#6e768b]">
+            <tr>
+              <th class="py-2 px-3 font-medium">Device ID</th>
+              <th class="py-2 px-3 font-medium">Client / Bed</th>
+              <th class="py-2 px-3 font-medium">Network Address</th>
+              <th class="py-2 px-3 font-medium">Sensors</th>
+              <th class="py-2 px-3 font-medium">Last Seen</th>
+              <th class="py-2 px-3 font-medium text-right">Status</th>
+            </tr>
+          </thead>
+          <tbody id="devicesTableBody" class="divide-y divide-slate-100 dark:divide-white/[0.04] text-[11px] font-mono">
+            <tr>
+              <td colspan="6" class="py-6 text-center text-slate-400 dark:text-[#6e768b] font-sans text-xs">
+                No ESP32 nodes announced yet. Flash firmware or run the simulator.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-white/[0.08] text-xs">
+        <span class="text-slate-500 dark:text-[#6e768b]">Upload firmware via <code class="font-mono text-slate-700 dark:text-[#9ba3b5]">python upload_esp32.py</code></span>
+        <button type="button" onclick="loadDevices()" class="h-8 px-3 rounded-md bg-slate-100 hover:bg-slate-200 dark:bg-[#181d2c] dark:hover:bg-[#20263a] text-slate-700 dark:text-[#9ba3b5] hover:text-slate-900 dark:hover:text-[#f1f3f7] flex items-center gap-1.5 transition-colors">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          <span>Refresh</span>
+        </button>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Client Script -->
   <script>
     let patients = [];
     let filteredPatients = [];
+    let devices = [];
     let activePatientId = null;
     let monitorWs = null;
     let currentObjectUrl = null;
@@ -637,6 +751,25 @@
                   ${escapeHtml(p.notes || 'No notes on file')}
                 </div>
               </div>
+
+              ${p.vitals && (p.vitals.heart_rate || p.vitals.temperature_c) ? `
+                <div class="mt-2.5 pt-2.5 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between text-[11px] font-mono">
+                  <div class="flex items-center gap-2">
+                    <span class="text-rose-600 dark:text-rose-400 font-medium flex items-center gap-0.5">
+                      <i data-lucide="heart" class="w-3 h-3"></i> ${p.vitals.heart_rate || '--'}<span class="text-[9px] text-slate-400">bpm</span>
+                    </span>
+                    <span class="text-sky-600 dark:text-sky-400 font-medium flex items-center gap-0.5">
+                      <i data-lucide="activity" class="w-3 h-3"></i> ${p.vitals.spo2 || '--'}<span class="text-[9px] text-slate-400">%</span>
+                    </span>
+                    <span class="text-amber-600 dark:text-amber-400 font-medium flex items-center gap-0.5">
+                      <i data-lucide="thermometer" class="w-3 h-3"></i> ${p.vitals.temperature_c || '--'}<span class="text-[9px] text-slate-400">°C</span>
+                    </span>
+                  </div>
+                  <span class="text-[10px] px-1.5 py-0.5 rounded font-sans ${p.vitals.status === 'NORMAL' ? 'text-emerald-700 bg-emerald-50 dark:bg-emerald-950/20 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20' : 'text-amber-700 bg-amber-50 dark:bg-amber-950/20 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20'}">
+                    ${escapeHtml(p.vitals.status || 'NORMAL')}
+                  </span>
+                </div>
+              ` : ''}
             </div>
 
             <div class="mt-4 pt-3 border-t border-slate-100 dark:border-white/[0.06] flex items-center justify-between">
@@ -709,6 +842,7 @@
       monitorSec.classList.remove('hidden');
       monitorSec.scrollIntoView({ behavior: 'smooth' });
 
+      updateVitalsHud(patient.vitals);
       connectMonitorWs(patientId);
       loadCurrentPatientLogs();
     }
@@ -720,6 +854,7 @@
       }
       document.getElementById('monitorSection').classList.add('hidden');
       activePatientId = null;
+      updateVitalsHud(null);
     }
 
     function connectMonitorWs(patientId) {
@@ -815,6 +950,159 @@
         banner.classList.add('hidden');
         resetBtn.classList.add('hidden');
       }
+
+      // Update Real-Time Vitals HUD
+      updateVitalsHud(t.vitals);
+    }
+
+    function updateVitalsHud(v) {
+      const hrEl = document.getElementById('vitalHeartRate');
+      const hrStatusEl = document.getElementById('vitalHeartRateStatus');
+      const spo2El = document.getElementById('vitalSpO2');
+      const spo2StatusEl = document.getElementById('vitalSpO2Status');
+      const tempCEl = document.getElementById('vitalTempC');
+      const tempFEl = document.getElementById('vitalTempF');
+      const tempStatusEl = document.getElementById('vitalTempStatus');
+      const nodeStatusEl = document.getElementById('vitalNodeStatus');
+      const nodeDotEl = document.getElementById('vitalNodeDot');
+      const nodeMetaEl = document.getElementById('vitalNodeMeta');
+
+      const cardHr = document.getElementById('vitalCardHr');
+      const cardSpo2 = document.getElementById('vitalCardSpo2');
+      const cardTemp = document.getElementById('vitalCardTemp');
+
+      if (!hrEl) return;
+
+      if (!v) {
+        hrEl.textContent = '--';
+        hrStatusEl.textContent = 'No node connected';
+        spo2El.textContent = '--';
+        spo2StatusEl.textContent = 'Optical sensor idle';
+        tempCEl.textContent = '--';
+        tempFEl.textContent = '(--°F)';
+        tempStatusEl.textContent = 'DS18B20 idle';
+        nodeStatusEl.textContent = 'Offline';
+        nodeDotEl.className = 'w-2 h-2 rounded-full bg-slate-400 dark:bg-slate-600';
+        nodeMetaEl.textContent = 'Awaiting telemetry';
+        return;
+      }
+
+      // Heart rate
+      if (v.heart_rate != null) {
+        hrEl.textContent = v.heart_rate;
+        if (v.status === 'TACHYCARDIA') {
+          hrStatusEl.textContent = 'High (>120 BPM)';
+          cardHr.className = 'rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-300 dark:border-red-500/40 p-3 transition-colors';
+        } else if (v.status === 'BRADYCARDIA') {
+          hrStatusEl.textContent = 'Low (<50 BPM)';
+          cardHr.className = 'rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-500/40 p-3 transition-colors';
+        } else {
+          hrStatusEl.textContent = 'Normal human rhythm';
+          cardHr.className = 'rounded-lg bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] p-3 transition-colors';
+        }
+      } else {
+        hrEl.textContent = '--';
+        hrStatusEl.textContent = v.finger_detected ? 'Acquiring pulse...' : 'Finger off sensor';
+        cardHr.className = 'rounded-lg bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] p-3 transition-colors';
+      }
+
+      // SpO2
+      if (v.spo2 != null) {
+        spo2El.textContent = v.spo2;
+        if (v.status === 'HYPOXEMIA') {
+          spo2StatusEl.textContent = 'Low (<92% SpO2)';
+          cardSpo2.className = 'rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-300 dark:border-red-500/40 p-3 transition-colors';
+        } else {
+          spo2StatusEl.textContent = 'Adequate saturation';
+          cardSpo2.className = 'rounded-lg bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] p-3 transition-colors';
+        }
+      } else {
+        spo2El.textContent = '--';
+        spo2StatusEl.textContent = v.finger_detected ? 'Acquiring PPG...' : 'Finger off sensor';
+        cardSpo2.className = 'rounded-lg bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] p-3 transition-colors';
+      }
+
+      // Temperature
+      if (v.temperature_c != null) {
+        tempCEl.textContent = v.temperature_c;
+        tempFEl.textContent = v.temperature_f ? `(${v.temperature_f}°F)` : '';
+        if (v.status === 'FEVER') {
+          tempStatusEl.textContent = 'Febrile (>38°C)';
+          cardTemp.className = 'rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-300 dark:border-red-500/40 p-3 transition-colors';
+        } else if (v.status === 'HYPOTHERMIA') {
+          tempStatusEl.textContent = 'Low (<35°C)';
+          cardTemp.className = 'rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-500/40 p-3 transition-colors';
+        } else {
+          tempStatusEl.textContent = 'Normothermic';
+          cardTemp.className = 'rounded-lg bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] p-3 transition-colors';
+        }
+      } else {
+        tempCEl.textContent = '--';
+        tempFEl.textContent = '(--°F)';
+        tempStatusEl.textContent = 'Probe idle';
+        cardTemp.className = 'rounded-lg bg-slate-50 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.08] p-3 transition-colors';
+      }
+
+      // Node Status
+      if (v.finger_detected) {
+        nodeStatusEl.textContent = v.status === 'NORMAL' ? 'Online & Streaming' : v.status;
+        nodeDotEl.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+        nodeMetaEl.textContent = `Updated ${v.updated_at || 'just now'}`;
+      } else {
+        nodeStatusEl.textContent = 'Finger detached';
+        nodeDotEl.className = 'w-2 h-2 rounded-full bg-amber-500';
+        nodeMetaEl.textContent = 'Optical contact lost';
+      }
+    }
+
+    async function loadDevices() {
+      try {
+        const res = await fetch('/api/devices');
+        devices = await res.json();
+        const activeDevices = devices.filter(d => d.status === 'ONLINE').length;
+        const statEl = document.getElementById('statActiveDevices');
+        if (statEl) statEl.textContent = activeDevices;
+
+        const tbody = document.getElementById('devicesTableBody');
+        if (!tbody) return;
+
+        if (!devices.length) {
+          tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-slate-400 dark:text-[#6e768b] font-sans text-xs">No ESP32 nodes announced yet. Flash firmware or run the simulator.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = devices.map(d => {
+          const isOnline = d.status === 'ONLINE';
+          const statusBadge = isOnline
+            ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-sans font-medium bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>ONLINE</span>'
+            : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-sans font-medium text-slate-500 dark:text-[#6e768b] bg-slate-100 dark:bg-[#181d2c] border border-slate-200 dark:border-white/[0.06]">OFFLINE</span>';
+
+          return `
+            <tr class="hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors">
+              <td class="py-2.5 px-3 font-semibold text-slate-900 dark:text-[#f1f3f7]">${escapeHtml(d.device_id)}</td>
+              <td class="py-2.5 px-3 text-slate-700 dark:text-[#9ba3b5]">${escapeHtml(d.client_id)}</td>
+              <td class="py-2.5 px-3 text-slate-500 dark:text-[#6e768b]">${escapeHtml(d.ip_address || '--')}<br><span class="text-[10px] text-slate-400">${escapeHtml(d.mac_address || '--')}</span></td>
+              <td class="py-2.5 px-3 text-slate-600 dark:text-[#9ba3b5]">${escapeHtml(d.sensors)}</td>
+              <td class="py-2.5 px-3 text-slate-500 dark:text-[#6e768b] whitespace-nowrap">${escapeHtml(d.last_seen)}</td>
+              <td class="py-2.5 px-3 text-right">${statusBadge}</td>
+            </tr>
+          `;
+        }).join('');
+        lucide.createIcons();
+      } catch (e) {
+        console.error('Error fetching devices:', e);
+      }
+    }
+
+    function openDevicesModal() {
+      document.getElementById('devicesModal').classList.remove('hidden');
+      document.getElementById('devicesModal').classList.add('flex');
+      loadDevices();
+    }
+
+    function closeDevicesModal() {
+      document.getElementById('devicesModal').classList.add('hidden');
+      document.getElementById('devicesModal').classList.remove('flex');
     }
 
     async function loadCurrentPatientLogs() {
@@ -881,6 +1169,7 @@
 
     setInterval(() => {
       loadPatients();
+      loadDevices();
       if (activePatientId) {
         loadCurrentPatientLogs();
       }
@@ -888,6 +1177,7 @@
 
     initTheme();
     loadPatients();
+    loadDevices();
     lucide.createIcons();
   </script>
 </body>

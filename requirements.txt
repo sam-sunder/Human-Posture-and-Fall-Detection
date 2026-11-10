@@ -3,3 +3,5 @@ uvicorn
 ultralytics
 opencv-python-headless
 numpy
+pyserial
+esptool
