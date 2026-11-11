@@ -154,6 +154,7 @@
       document.getElementById('devicePreview').classList.toggle('hidden', !simulator.deviceVisible);
       document.getElementById('deviceEmpty').classList.toggle('hidden', simulator.deviceVisible);
       document.getElementById('metricsPreview').classList.toggle('hidden', !simulator.metricsVisible);
+      document.getElementById('metricsPreview').style.display = simulator.metricsVisible ? 'grid' : 'none';
       document.getElementById('metricsEmpty').classList.toggle('hidden', simulator.metricsVisible);
       document.getElementById('deviceToggle').querySelector('span').textContent = simulator.deviceVisible ? 'Remove mock device' : 'Add mock device';
       document.getElementById('deviceToggle').querySelector('i').setAttribute('data-lucide', simulator.deviceVisible ? 'minus' : 'plus');
