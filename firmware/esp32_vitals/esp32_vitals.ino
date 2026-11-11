@@ -42,7 +42,7 @@ const char* WIFI_SSID     = "vivo T3 5G";
 const char* WIFI_PASSWORD = "sam12345";
 
 // Server IP address and port where the FastAPI backend is running
-const char* SERVER_HOST   = "10.129.97.210"; 
+const char* SERVER_HOST   = " 10.129.97.111"; 
 const int   SERVER_PORT   = 8000;
 
 // Hardware Identity
