@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>KineticGuard — Mock Device Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="min-h-screen bg-slate-50 font-sans text-slate-900 antialiased">
+  <header class="sticky top-0 z-10 border-b border-slate-200 bg-white/95 backdrop-blur">
+    <div class="mx-auto flex h-14 max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
+      <a href="/dashboard" class="flex items-center gap-2.5 text-sm font-semibold">
+        <span class="flex h-7 w-7 items-center justify-center rounded-md bg-slate-900 text-white"><i data-lucide="activity" class="h-4 w-4"></i></span>
+        KineticGuard <span class="font-normal text-slate-400">/</span> <span class="font-medium text-slate-600">Mock lab</span>
+      </a>
+      <nav class="flex items-center gap-2">
+        <a href="/capture" class="flex h-8 items-center gap-1.5 rounded-md border border-slate-200 px-2.5 text-xs text-slate-600 transition-colors hover:bg-slate-100"><i data-lucide="camera" class="h-3.5 w-3.5"></i><span>Camera</span></a>
+        <a href="/dashboard" class="flex h-8 items-center gap-1.5 rounded-md bg-slate-900 px-2.5 text-xs text-white transition-colors hover:bg-slate-700"><i data-lucide="layout-dashboard" class="h-3.5 w-3.5"></i><span>Dashboard</span></a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="mx-auto max-w-5xl space-y-6 px-4 py-8 sm:px-6">
+    <section class="flex flex-wrap items-end justify-between gap-4 border-b border-slate-200 pb-5">
+      <div>
+        <p class="font-mono text-[11px] uppercase tracking-widest text-emerald-700">Local simulator</p>
+        <h1 class="mt-1 text-2xl font-semibold">Mock device lab</h1>
+        <p class="mt-1 text-sm text-slate-500">Preview a single sensor node and adjust its sample vitals.</p>
+      </div>
+      <span class="inline-flex items-center gap-1.5 rounded border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-[11px] font-medium text-amber-800"><i data-lucide="shield-check" class="h-3.5 w-3.5"></i> Browser only · no real data sent</span>
+    </section>
+
+    <section aria-label="Simulator controls" class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.8fr)]">
+      <div class="space-y-5">
+        <section class="border-b border-slate-200 pb-5">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-sm font-semibold">Mock device</h2>
+              <p class="mt-1 text-xs text-slate-500">One simulated ESP32 sensor node.</p>
+            </div>
+            <button id="deviceToggle" type="button" onclick="toggleDevice()" class="flex h-9 items-center gap-2 rounded-md bg-slate-900 px-3 text-xs font-medium text-white transition-colors hover:bg-slate-700"><i data-lucide="plus" class="h-3.5 w-3.5"></i><span>Add mock device</span></button>
+          </div>
+          <div id="devicePreview" class="mt-4 hidden rounded-md border border-slate-200 bg-white p-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <span class="flex h-9 w-9 items-center justify-center rounded-md bg-emerald-50 text-emerald-700"><i data-lucide="cpu" class="h-4 w-4"></i></span>
+                <div>
+                  <p class="font-mono text-xs font-medium">MOCK-ESP32-01</p>
+                  <p class="mt-1 text-[11px] text-slate-500">Test bedside · MAX30102 + DS18B20</p>
+                </div>
+              </div>
+              <span class="inline-flex items-center gap-1.5 rounded border border-emerald-200 bg-emerald-50 px-2 py-1 text-[10px] font-medium text-emerald-800"><span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>SIMULATED ONLINE</span>
+            </div>
+          </div>
+          <p id="deviceEmpty" class="mt-4 rounded-md border border-dashed border-slate-300 px-4 py-5 text-center text-xs text-slate-500">No mock device shown.</p>
+        </section>
+
+        <section>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h2 class="text-sm font-semibold">Mock metrics</h2>
+              <p class="mt-1 text-xs text-slate-500">Choose sample values, then apply them to the preview.</p>
+            </div>
+            <button id="metricsToggle" type="button" onclick="toggleMetrics()" class="flex h-9 items-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100"><i data-lucide="eye" class="h-3.5 w-3.5"></i><span>Show mock metrics</span></button>
+          </div>
+
+          <div id="metricsPreview" class="mt-4 hidden grid-cols-1 gap-3 sm:grid-cols-3">
+            <article class="rounded-md border border-slate-200 bg-white p-4">
+              <div class="flex items-center gap-2 text-xs text-slate-500"><i data-lucide="heart-pulse" class="h-4 w-4 text-rose-600"></i>Heart rate</div>
+              <p class="mt-3 font-mono text-2xl font-medium"><span id="heartRateDisplay">72</span><span class="ml-1 text-xs text-slate-500">bpm</span></p>
+            </article>
+            <article class="rounded-md border border-slate-200 bg-white p-4">
+              <div class="flex items-center gap-2 text-xs text-slate-500"><i data-lucide="activity" class="h-4 w-4 text-sky-700"></i>SpO2</div>
+              <p class="mt-3 font-mono text-2xl font-medium"><span id="spo2Display">98</span><span class="ml-1 text-xs text-slate-500">%</span></p>
+            </article>
+            <article class="rounded-md border border-slate-200 bg-white p-4">
+              <div class="flex items-center gap-2 text-xs text-slate-500"><i data-lucide="thermometer" class="h-4 w-4 text-amber-700"></i>Temperature</div>
+              <p class="mt-3 font-mono text-2xl font-medium"><span id="temperatureDisplay">36.8</span><span class="ml-1 text-xs text-slate-500">°C</span></p>
+            </article>
+          </div>
+          <p id="metricsEmpty" class="mt-4 rounded-md border border-dashed border-slate-300 px-4 py-5 text-center text-xs text-slate-500">Mock metrics are hidden.</p>
+        </section>
+      </div>
+
+      <aside class="h-fit rounded-md border border-slate-200 bg-white p-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h2 class="text-sm font-semibold">Set metrics</h2>
+            <p class="mt-1 text-[11px] text-slate-500">Values are saved in this browser.</p>
+          </div>
+          <i data-lucide="sliders-horizontal" class="h-4 w-4 text-slate-400"></i>
+        </div>
+        <form id="metricsForm" class="mt-4 space-y-3" onsubmit="applyMetrics(event)">
+          <label class="block text-xs text-slate-600" for="heartRateInput">Heart rate <span class="text-slate-400">(bpm)</span>
+            <input id="heartRateInput" type="number" min="30" max="220" step="1" required class="mt-1.5 h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-2.5 font-mono text-sm text-slate-900 outline-none focus:border-emerald-600" value="72">
+          </label>
+          <label class="block text-xs text-slate-600" for="spo2Input">SpO2 <span class="text-slate-400">(%)</span>
+            <input id="spo2Input" type="number" min="50" max="100" step="1" required class="mt-1.5 h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-2.5 font-mono text-sm text-slate-900 outline-none focus:border-emerald-600" value="98">
+          </label>
+          <label class="block text-xs text-slate-600" for="temperatureInput">Temperature <span class="text-slate-400">(°C)</span>
+            <input id="temperatureInput" type="number" min="25" max="45" step="0.1" required class="mt-1.5 h-9 w-full rounded-md border border-slate-200 bg-slate-50 px-2.5 font-mono text-sm text-slate-900 outline-none focus:border-emerald-600" value="36.8">
+          </label>
+          <button type="submit" class="flex h-9 w-full items-center justify-center gap-2 rounded-md bg-emerald-700 text-xs font-medium text-white transition-colors hover:bg-emerald-800"><i data-lucide="check" class="h-3.5 w-3.5"></i>Apply metrics</button>
+        </form>
+        <button type="button" onclick="resetSimulator()" class="mt-2 flex h-9 w-full items-center justify-center gap-2 rounded-md border border-slate-200 text-xs text-slate-600 transition-colors hover:bg-slate-50"><i data-lucide="rotate-ccw" class="h-3.5 w-3.5"></i>Reset simulator</button>
+        <p id="simulatorStatus" role="status" aria-live="polite" class="mt-3 min-h-4 text-center text-[11px] text-slate-500"></p>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const defaults = {
+      deviceVisible: false,
+      metricsVisible: false,
+      metrics: { heartRate: 72, spo2: 98, temperature: 36.8 }
+    };
+    let simulator = { ...defaults, metrics: { ...defaults.metrics } };
+
+    try {
+      const saved = JSON.parse(localStorage.getItem('kineticguard-mock-lab') || 'null');
+      if (saved && typeof saved === 'object') {
+        simulator.deviceVisible = saved.deviceVisible === true;
+        simulator.metricsVisible = saved.metricsVisible === true;
+        for (const key of Object.keys(defaults.metrics)) {
+          const value = Number(saved.metrics?.[key]);
+          if (Number.isFinite(value)) simulator.metrics[key] = value;
+        }
+      }
+    } catch (error) {
+      localStorage.removeItem('kineticguard-mock-lab');
+    }
+
+    function saveSimulator() {
+      localStorage.setItem('kineticguard-mock-lab', JSON.stringify(simulator));
+    }
+
+    function renderSimulator() {
+      document.getElementById('devicePreview').classList.toggle('hidden', !simulator.deviceVisible);
+      document.getElementById('deviceEmpty').classList.toggle('hidden', simulator.deviceVisible);
+      document.getElementById('metricsPreview').classList.toggle('hidden', !simulator.metricsVisible);
+      document.getElementById('metricsEmpty').classList.toggle('hidden', simulator.metricsVisible);
+      document.getElementById('deviceToggle').querySelector('span').textContent = simulator.deviceVisible ? 'Remove mock device' : 'Add mock device';
+      document.getElementById('deviceToggle').querySelector('i').setAttribute('data-lucide', simulator.deviceVisible ? 'minus' : 'plus');
+      document.getElementById('metricsToggle').querySelector('span').textContent = simulator.metricsVisible ? 'Hide mock metrics' : 'Show mock metrics';
+      document.getElementById('metricsToggle').querySelector('i').setAttribute('data-lucide', simulator.metricsVisible ? 'eye-off' : 'eye');
+      document.getElementById('heartRateDisplay').textContent = simulator.metrics.heartRate;
+      document.getElementById('spo2Display').textContent = simulator.metrics.spo2;
+      document.getElementById('temperatureDisplay').textContent = simulator.metrics.temperature.toFixed(1);
+      lucide.createIcons();
+    }
+
+    function toggleDevice() {
+      simulator.deviceVisible = !simulator.deviceVisible;
+      saveSimulator();
+      renderSimulator();
+    }
+
+    function toggleMetrics() {
+      simulator.metricsVisible = !simulator.metricsVisible;
+      saveSimulator();
+      renderSimulator();
+    }
+
+    function applyMetrics(event) {
+      event.preventDefault();
+      simulator.metrics = {
+        heartRate: Number(document.getElementById('heartRateInput').value),
+        spo2: Number(document.getElementById('spo2Input').value),
+        temperature: Number(document.getElementById('temperatureInput').value)
+      };
+      saveSimulator();
+      renderSimulator();
+      document.getElementById('simulatorStatus').textContent = 'Mock metrics updated.';
+    }
+
+    function resetSimulator() {
+      simulator = { ...defaults, metrics: { ...defaults.metrics } };
+      document.getElementById('metricsForm').reset();
+      saveSimulator();
+      renderSimulator();
+      document.getElementById('simulatorStatus').textContent = 'Simulator reset.';
+    }
+
+    document.getElementById('heartRateInput').value = simulator.metrics.heartRate;
+    document.getElementById('spo2Input').value = simulator.metrics.spo2;
+    document.getElementById('temperatureInput').value = simulator.metrics.temperature;
+    renderSimulator();
+  </script>
+</body>
+</html>

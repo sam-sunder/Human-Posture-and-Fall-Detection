@@ -203,6 +203,11 @@ async def capture_page() -> FileResponse:
     return FileResponse(TEMPLATES_DIR / "capture.html")
 
 
+@app.get("/test")
+async def test_page() -> FileResponse:
+    return FileResponse(TEMPLATES_DIR / "test.html")
+
+
 # --- REST API Endpoints ---
 
 @app.get("/api/patients")
